@@ -18,7 +18,7 @@ type Metric struct {
 }
 
 func (m Metric) String() string {
-	return fmt.Sprintf("%s@%s:%s", m.Name, m.Type, m.Value)
+	return fmt.Sprintf("%s:%s=%s", m.Name, m.Type, m.Value)
 }
 
 type GaugeMetric struct {
@@ -27,8 +27,16 @@ type GaugeMetric struct {
 	Type  MetricType
 }
 
+func (m GaugeMetric) String() string {
+	return fmt.Sprintf("%s:%s=%v", m.Name, m.Type, m.Value)
+}
+
 type CounterMetric struct {
 	Value int64
 	Name  string
 	Type  MetricType
+}
+
+func (m CounterMetric) String() string {
+	return fmt.Sprintf("%s:%s=%v", m.Name, m.Type, m.Value)
 }

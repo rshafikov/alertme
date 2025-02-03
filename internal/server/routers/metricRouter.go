@@ -1,29 +1,27 @@
 package routers
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/rshafikov/alertme/internal/server/models"
-	"github.com/rshafikov/alertme/internal/server/services"
+	"github.com/rshafikov/alertme/internal/server/storage"
 )
 
-type MetricsHandler struct {
-	store services.BaseMetricStorage
+type MetricsRouter struct {
+	store storage.BaseMetricStorage
 }
 
-func NewMetricsHandler(s services.BaseMetricStorage) *MetricsHandler {
-	return &MetricsHandler{
+func NewMetricsRouter(s storage.BaseMetricStorage) *MetricsRouter {
+	return &MetricsRouter{
 		store: s,
 	}
 }
 
-func (h *MetricsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == http.MethodPost:
 		h.CreateMetric(w, r)
@@ -35,9 +33,9 @@ func (h *MetricsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *MetricsHandler) CreateMetric(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsRouter) CreateMetric(w http.ResponseWriter, r *http.Request) {
 	params := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	fmt.Println(params)
+	log.Println(params)
 	if len(params) != 3 {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
@@ -65,42 +63,38 @@ func (h *MetricsHandler) CreateMetric(w http.ResponseWriter, r *http.Request) {
 
 	newMetric := models.Metric{Type: metricType, Name: metricName, Value: metricValue}
 
-	fmt.Println("LOG:", "trying to create new metric:", newMetric)
+	log.Println("LOG:", "trying to create new metric:", newMetric)
 	if err := h.store.Add(&newMetric); err != nil {
 		var (
-			metricTypeErr  *services.UnsupportedMetricTypeError
-			metricValueErr *services.IncorrectMetricValueError
+			metricTypeErr  *storage.UnsupportedMetricTypeError
+			metricValueErr *storage.IncorrectMetricValueError
 		)
 		if errors.As(err, &metricTypeErr) {
-			fmt.Println("ERR", metricTypeErr.Error())
+			log.Println("ERR", metricTypeErr.Error())
 			http.Error(w, "", http.StatusBadRequest)
 			return
 
 		} else if errors.As(err, &metricValueErr) {
-			fmt.Println("ERR", metricValueErr.Error())
+			log.Println("ERR", metricValueErr.Error())
 			http.Error(w, "", http.StatusBadRequest)
 			return
 
 		} else {
-			fmt.Println("ERR: cannot add metric to storage", err)
+			log.Println("ERR: cannot add metric to storage", err)
 			http.Error(w, "cannot add metric to storage", http.StatusInternalServerError)
 			return
 		}
 	}
 
-	fmt.Println("LOG:", "metric was created")
+	log.Println("LOG:", "metric was created")
 
-	createdMetric, err := h.store.Get(newMetric.Type, newMetric.Name)
+	_, err := h.store.Get(newMetric.Type, newMetric.Name)
 	if err != nil {
-		fmt.Println("ERR", "cannot add metric to storage", err)
+		log.Println("ERR", "cannot add metric to storage", err)
 		http.Error(w, "cannot add metric to storage", http.StatusInternalServerError)
 		return
 	}
-
-	jsonBytes, _ := json.Marshal(createdMetric)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(jsonBytes)
-	if err != nil {
-		return
-	}
+
 }

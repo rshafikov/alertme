@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/rshafikov/alertme/internal/server/routers"
-	"github.com/rshafikov/alertme/internal/server/services"
+	"github.com/rshafikov/alertme/internal/server/storage"
 )
 
 func main() {
@@ -14,11 +14,11 @@ func main() {
 }
 
 func run() error {
-	store := services.NewMemStorage()
-	metricsHandler := routers.NewMetricsHandler(store)
+	store := storage.NewMemStorage()
+	metricsRouter := routers.NewMetricsRouter(store)
 
 	mux := http.NewServeMux()
-	mux.Handle("/update/", http.StripPrefix("/update", metricsHandler))
+	mux.Handle("/update/", http.StripPrefix("/update", metricsRouter))
 
 	return http.ListenAndServe(`:8080`, mux)
 }

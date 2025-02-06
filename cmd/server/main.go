@@ -1,10 +1,10 @@
 package main
 
 import (
-	"net/http"
-
+	"github.com/go-chi/chi/v5"
 	"github.com/rshafikov/alertme/internal/server/routers"
 	"github.com/rshafikov/alertme/internal/server/storage"
+	"net/http"
 )
 
 func main() {
@@ -14,11 +14,11 @@ func main() {
 }
 
 func run() error {
-	store := storage.NewMemStorage()
-	metricsRouter := routers.NewMetricsRouter(store)
+	s := storage.NewMemStorage()
+	mR := routers.NewMetricsRouter(s)
 
-	mux := http.NewServeMux()
-	mux.Handle("/update/", http.StripPrefix("/update", metricsRouter))
+	r := chi.NewRouter()
+	r.Mount("/", mR.Routes())
 
-	return http.ListenAndServe(`:8080`, mux)
+	return http.ListenAndServe(`:8080`, r)
 }

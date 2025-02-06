@@ -30,6 +30,7 @@ func (e *IncorrectMetricValueError) Error() string {
 type BaseMetricStorage interface {
 	Add(metric *models.Metric) error
 	Get(metricType models.MetricType, name string) (models.Metric, error)
+	List() ([]models.Metric, error)
 	Clear()
 }
 
@@ -98,6 +99,22 @@ func (s *MemStorage) Get(metricType models.MetricType, name string) (models.Metr
 		return models.Metric{}, errors.New("unsupported metric type")
 	}
 
+}
+
+func (s *MemStorage) List() ([]models.Metric, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	metrics := make([]models.Metric, 0, len(s.Gauges)+len(s.Counters))
+	for _, metric := range s.Gauges {
+		value := strconv.FormatFloat(metric.Value, 'f', -1, 64)
+		metrics = append(metrics, models.Metric{Type: metric.Type, Name: metric.Name, Value: value})
+	}
+	for _, metric := range s.Counters {
+		value := strconv.FormatInt(metric.Value, 10)
+		metrics = append(metrics, models.Metric{Type: metric.Type, Name: metric.Name, Value: value})
+	}
+	return metrics, nil
 }
 
 func (s *MemStorage) Clear() {

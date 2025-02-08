@@ -6,13 +6,9 @@ import (
 	"time"
 )
 
-const (
-	pollInterval   = 2 * time.Second
-	reportInterval = 10 * time.Second
-)
-
 func main() {
-	CollectAndSendMetrics(reportInterval, pollInterval)
+	agent.InitAgentFlags()
+	CollectAndSendMetrics(agent.ReportInterval, agent.PollInterval)
 }
 
 func CollectMetrics(dc *agent.DataCollector, interval time.Duration) {
@@ -20,16 +16,17 @@ func CollectMetrics(dc *agent.DataCollector, interval time.Duration) {
 	fmt.Println(dc)
 	time.Sleep(interval)
 }
-func CollectAndSendMetrics(reportInterval, pollInterval time.Duration) {
-	client := agent.NewClient("http://localhost:8080")
+
+func CollectAndSendMetrics(reportTime, pollTime int) {
+	client := agent.NewClient("http://" + agent.ServerAddress.String())
 	dc := agent.NewEmptyDataCollector()
-	timer := time.Now().Add(reportInterval)
+	timer := time.Now().Add(time.Duration(reportTime) * time.Second)
 	for {
-		CollectMetrics(dc, pollInterval)
+		CollectMetrics(dc, time.Duration(pollTime)*time.Second)
 		if time.Now().After(timer) {
 			client.SendStoredData(dc)
 			fmt.Println("Metrics were sent")
-			timer = time.Now().Add(reportInterval)
+			timer = time.Now().Add(time.Duration(reportTime) * time.Second)
 		}
 	}
 }

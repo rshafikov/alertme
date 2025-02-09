@@ -4,6 +4,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -37,4 +39,14 @@ func InitServerFlags() {
 	_ = flag.Value(&Address)
 	flag.Var(&Address, "a", "server address")
 	flag.Parse()
+
+	if envAddress := os.Getenv("ADDRESS"); envAddress != "" {
+		host, port, err := net.SplitHostPort(envAddress)
+		if err != nil {
+			fmt.Printf("invalid ADDRESS environment variable: %s\n", envAddress)
+			os.Exit(1)
+		}
+		Address.Host = host
+		Address.Port = port
+	}
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	agent.InitAgentFlags()
+	agent.InitAgentConfiguration()
 	CollectAndSendMetrics(agent.ReportInterval, agent.PollInterval)
 }
 

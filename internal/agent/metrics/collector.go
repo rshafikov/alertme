@@ -1,4 +1,4 @@
-package agent
+package metrics
 
 import (
 	"fmt"
@@ -12,6 +12,12 @@ type DataCollector struct {
 	PollCount models.CounterMetric
 }
 
+func NewEmptyDataCollector() *DataCollector {
+	return &DataCollector{
+		PollCount: models.CounterMetric{Name: "PollCount", Value: 0, Type: models.CounterType},
+	}
+}
+
 func (d *DataCollector) String() string {
 	metrics := "========================================\n"
 	for _, metric := range d.Metrics {
@@ -21,18 +27,12 @@ func (d *DataCollector) String() string {
 	return metrics
 }
 
-func NewEmptyDataCollector() *DataCollector {
-	return &DataCollector{
-		PollCount: models.CounterMetric{Name: "PollCount", Value: 0, Type: models.CounterType},
-	}
-}
-
-func UpdateDataCollector(data *DataCollector) {
-	data.PollCount.Value++
+func (d *DataCollector) UpdateMetrics() {
+	d.PollCount.Value++
 
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
-	data.Metrics = []models.GaugeMetric{
+	d.Metrics = []models.GaugeMetric{
 		{Name: "Alloc", Type: models.GaugeType, Value: float64(memStats.Alloc)},
 		{Name: "BuckHashSys", Type: models.GaugeType, Value: float64(memStats.BuckHashSys)},
 		{Name: "Frees", Type: models.GaugeType, Value: float64(memStats.Frees)},

@@ -59,7 +59,7 @@ func TestMemStorage_AddAndGet(t *testing.T) {
 		}
 		err := storage.Add(metric)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unsupported metric type")
+		assert.Contains(t, err.Error(), UnsupportedMetricTypeErrMsg)
 	})
 
 	t.Run("add invalid gauge value", func(t *testing.T) {
@@ -70,7 +70,7 @@ func TestMemStorage_AddAndGet(t *testing.T) {
 		}
 		err := storage.Add(metric)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot convert metric value to float64")
+		assert.Contains(t, err.Error(), CannotConvertToFloatErrMsg)
 	})
 
 	t.Run("add invalid counter value", func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestMemStorage_AddAndGet(t *testing.T) {
 		}
 		err := storage.Add(metric)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot convert metric value to int64")
+		assert.Contains(t, err.Error(), CannotConvertToIntErrMsg)
 	})
 }
 
@@ -91,13 +91,13 @@ func TestMemStorage_GetErrors(t *testing.T) {
 	t.Run("get metric which not exists", func(t *testing.T) {
 		_, err := storage.Get(models.GaugeType, "missing_metric")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "metric not found")
+		assert.Contains(t, err.Error(), NotFoundMetricErrMsg)
 	})
 
 	t.Run("get unsupported metric type", func(t *testing.T) {
 		_, err := storage.Get("unknown", "test_metric")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unsupported metric type")
+		assert.Contains(t, err.Error(), UnsupportedMetricTypeErrMsg)
 	})
 }
 
@@ -112,10 +112,10 @@ func TestMemStorage_Clear(t *testing.T) {
 	t.Run("check if storage is empty", func(t *testing.T) {
 		_, err := storage.Get(models.GaugeType, "CPU")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "metric not found")
+		assert.Contains(t, err.Error(), NotFoundMetricErrMsg)
 
 		_, err = storage.Get(models.CounterType, "UPTIME")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "metric not found")
+		assert.Contains(t, err.Error(), NotFoundMetricErrMsg)
 	})
 }

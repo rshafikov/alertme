@@ -9,6 +9,13 @@ import (
 	"github.com/rshafikov/alertme/internal/server/models"
 )
 
+const (
+	NotFoundMetricErrMsg        = "metric not found"
+	UnsupportedMetricTypeErrMsg = "unsupported metric type"
+	CannotConvertToIntErrMsg    = "cannot convert to int"
+	CannotConvertToFloatErrMsg  = "cannot convert to float"
+)
+
 type UnsupportedMetricTypeError struct {
 	arg     string
 	message string
@@ -25,13 +32,6 @@ type IncorrectMetricValueError struct {
 
 func (e *IncorrectMetricValueError) Error() string {
 	return fmt.Sprintf("'%s' <- %s", e.arg, e.message)
-}
-
-type BaseMetricStorage interface {
-	Add(metric *models.Metric) error
-	Get(metricType models.MetricType, name string) (models.Metric, error)
-	List() ([]models.Metric, error)
-	Clear()
 }
 
 type MemStorage struct {
@@ -55,14 +55,14 @@ func (s *MemStorage) Add(m *models.Metric) error {
 	case models.GaugeType:
 		value, err := strconv.ParseFloat(m.Value, 64)
 		if err != nil {
-			return &IncorrectMetricValueError{arg: m.Value, message: "cannot convert metric value to float64"}
+			return &IncorrectMetricValueError{arg: m.Value, message: CannotConvertToFloatErrMsg}
 		}
 		newGaugeMetric := models.GaugeMetric{Type: m.Type, Name: m.Name, Value: value}
 		s.Gauges[m.Name] = newGaugeMetric
 	case models.CounterType:
 		value, err := strconv.ParseInt(m.Value, 10, 64)
 		if err != nil {
-			return &IncorrectMetricValueError{arg: m.Value, message: "cannot convert metric value to int64"}
+			return &IncorrectMetricValueError{arg: m.Value, message: CannotConvertToIntErrMsg}
 		}
 		if oldMetric, ok := s.Counters[m.Name]; ok {
 			value += oldMetric.Value
@@ -70,7 +70,7 @@ func (s *MemStorage) Add(m *models.Metric) error {
 		newCounterMetric := models.CounterMetric{Type: m.Type, Name: m.Name, Value: value}
 		s.Counters[m.Name] = newCounterMetric
 	default:
-		return &UnsupportedMetricTypeError{arg: string(m.Type), message: "unsupported metric type"}
+		return &UnsupportedMetricTypeError{arg: string(m.Type), message: UnsupportedMetricTypeErrMsg}
 	}
 
 	return nil
@@ -80,23 +80,21 @@ func (s *MemStorage) Get(metricType models.MetricType, name string) (models.Metr
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	errMessage := "metric not found"
-
 	switch metricType {
 	case models.GaugeType:
 		if metric, ok := s.Gauges[name]; ok {
 			value := strconv.FormatFloat(metric.Value, 'f', -1, 64)
 			return models.Metric{Type: metric.Type, Name: metric.Name, Value: value}, nil
 		}
-		return models.Metric{}, errors.New(errMessage)
+		return models.Metric{}, errors.New(NotFoundMetricErrMsg)
 	case models.CounterType:
 		if metric, ok := s.Counters[name]; ok {
 			value := strconv.FormatInt(metric.Value, 10)
 			return models.Metric{Type: metric.Type, Name: metric.Name, Value: value}, nil
 		}
-		return models.Metric{}, errors.New(errMessage)
+		return models.Metric{}, errors.New(NotFoundMetricErrMsg)
 	default:
-		return models.Metric{}, errors.New("unsupported metric type")
+		return models.Metric{}, errors.New(UnsupportedMetricTypeErrMsg)
 	}
 
 }

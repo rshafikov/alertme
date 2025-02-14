@@ -1,4 +1,4 @@
-package agent
+package metrics
 
 import (
 	"github.com/rshafikov/alertme/internal/server/models"
@@ -12,7 +12,7 @@ func TestUpdateDataCollector(t *testing.T) {
 
 	t.Run("check PollCounter increments", func(t *testing.T) {
 		initialValue := dc.PollCount.Value
-		UpdateDataCollector(dc)
+		dc.UpdateMetrics()
 		assert.Greater(t, dc.PollCount.Value, initialValue)
 	})
 
@@ -26,7 +26,7 @@ func TestUpdateDataCollector(t *testing.T) {
 			return models.GaugeMetric{}
 		}
 		randValueBefore := getMetricByName("RandomValue", &dc.Metrics).Value
-		UpdateDataCollector(dc)
+		dc.UpdateMetrics()
 		randValueAfter := getMetricByName("RandomValue", &dc.Metrics).Value
 
 		assert.NotEqualValues(t, randValueBefore, randValueAfter)

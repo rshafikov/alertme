@@ -3,30 +3,39 @@ package main
 import (
 	"fmt"
 	"github.com/rshafikov/alertme/internal/agent"
+	"github.com/rshafikov/alertme/internal/agent/config"
+	"github.com/rshafikov/alertme/internal/agent/metrics"
 	"time"
 )
 
 func main() {
-	agent.InitAgentConfiguration()
-	CollectAndSendMetrics(agent.ReportInterval, agent.PollInterval)
-}
+	config.InitAgentConfiguration()
+	dc := metrics.NewEmptyDataCollector()
+	client := agent.NewClient("http://" + config.ServerAddress.String())
+	pollTicker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
+	reportTicker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
 
-func CollectMetrics(dc *agent.DataCollector, interval time.Duration) {
-	agent.UpdateDataCollector(dc)
-	fmt.Println(dc)
-	time.Sleep(interval)
-}
-
-func CollectAndSendMetrics(reportTime, pollTime int) {
-	client := agent.NewClient("http://" + agent.ServerAddress.String())
-	dc := agent.NewEmptyDataCollector()
-	timer := time.Now().Add(time.Duration(reportTime) * time.Second)
-	for {
-		CollectMetrics(dc, time.Duration(pollTime)*time.Second)
-		if time.Now().After(timer) {
-			client.SendStoredData(dc)
-			fmt.Println("Metrics were sent")
-			timer = time.Now().Add(time.Duration(reportTime) * time.Second)
+	go func() {
+		for range pollTicker.C {
+			CollectMetrics(dc)
 		}
-	}
+	}()
+
+	go func() {
+		for range reportTicker.C {
+			SendMetrics(client, dc)
+		}
+	}()
+
+	select {}
+}
+
+func CollectMetrics(dc *metrics.DataCollector) {
+	dc.UpdateMetrics()
+	fmt.Println(dc)
+}
+
+func SendMetrics(client *agent.Client, dataCollector *metrics.DataCollector) {
+	client.SendStoredData(dataCollector)
+	fmt.Println("Metrics were sent")
 }

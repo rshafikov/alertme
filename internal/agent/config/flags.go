@@ -1,18 +1,19 @@
-package agent
+package config
 
 import (
 	"flag"
 	"fmt"
-	"github.com/caarlos0/env/v6"
+	"log"
 	"net"
 	"strconv"
 )
 
-type EnvConfig struct {
-	SrvAddr     string `env:"ADDRESS"`
-	ReportIntrv int    `env:"REPORT_INTERVAL"`
-	PollIntrv   int    `env:"POLL_INTERVAL"`
-}
+const (
+	defaultHost           = "localhost"
+	defaultPort           = "8080"
+	defaultReportInterval = 10
+	defaultPollInterval   = 2
+)
 
 type netAddress struct {
 	Host string
@@ -37,26 +38,22 @@ func (na *netAddress) Set(value string) error {
 	return nil
 }
 
-var ServerAddress = netAddress{Host: "localhost", Port: "8080"}
-var ReportInterval int = 10
-var PollInterval int = 2
-
-var Env EnvConfig
-
-func ParseEnv() error {
-	err := env.Parse(&Env)
-	if err != nil {
-		fmt.Println("Unable to parse ENV:", err)
-		return err
-	}
-	return nil
-}
+var ServerAddress = netAddress{Host: defaultHost, Port: defaultPort}
+var ReportInterval int
+var PollInterval int
 
 func InitAgentFlags() {
 	flag.Var(&ServerAddress, "a", "server address")
-	flag.IntVar(&ReportInterval, "r", ReportInterval, "report interval")
-	flag.IntVar(&PollInterval, "p", PollInterval, "poll interval")
+	flag.IntVar(&ReportInterval, "r", defaultReportInterval, "report interval")
+	flag.IntVar(&PollInterval, "p", defaultPollInterval, "poll interval")
 	flag.Parse()
+	if ReportInterval <= 0 {
+		log.Fatal("report interval cannot be negative or null")
+	}
+	if PollInterval <= 0 {
+		log.Fatal("poll interval cannot be negative or null")
+	}
+
 }
 
 func InitAgentConfiguration() {
@@ -65,14 +62,17 @@ func InitAgentConfiguration() {
 		if Env.SrvAddr != "" {
 			host, port, err := net.SplitHostPort(Env.SrvAddr)
 			if err == nil {
+				log.Println("server address parsed from env:", host, port)
 				ServerAddress.Host = host
 				ServerAddress.Port = port
 			}
 		}
 		if Env.ReportIntrv > 0 {
+			log.Println("report interval parsed from env:", Env.ReportIntrv)
 			ReportInterval = Env.ReportIntrv
 		}
 		if Env.PollIntrv > 0 {
+			log.Println("poll interval  parsed from env:", Env.PollIntrv)
 			PollInterval = Env.PollIntrv
 		}
 	}

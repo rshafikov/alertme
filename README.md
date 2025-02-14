@@ -95,3 +95,22 @@ curl -X POST http://localhost:8080/update/gauge/cpu_usage/45.3
 ```
 
 ---
+
+## Tests
+
+**Running external tests:** `iter1 -> iter5`
+
+```shell
+metricstest \
+-test.run="^TestIteration([1-5]|[1-5][A-Z])$" \
+-agent-binary-path=cmd/agent/agent \
+-binary-path=cmd/server/server \
+-source-path=. \
+-server-port=9000
+```
+
+**Running statictests:** 
+
+```shell
+go vet -vettool=`which statictest` ./...
+```

@@ -1,4 +1,4 @@
-package server
+package config
 
 import (
 	"errors"
@@ -8,6 +8,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+)
+
+const (
+	baseHost     = "localhost"
+	baseHostPort = "8080"
 )
 
 type netAddress struct {
@@ -33,7 +38,7 @@ func (na *netAddress) Set(s string) error {
 	return nil
 }
 
-var Address netAddress = netAddress{Host: "localhost", Port: "8080"}
+var Address = netAddress{Host: baseHost, Port: baseHostPort}
 
 func InitServerFlags() {
 	_ = flag.Value(&Address)

@@ -1,32 +1,116 @@
-# go-musthave-metrics-tpl
+# alertme
 
-Шаблон репозитория для трека «Сервер сбора метрик и алертинга».
+**alertme** is a lightweight client-server metric collection service written in Go. It allows an agent to collect system metrics and send them to a central server for storage and retrieval.
 
-## Начало работы
+## Features
+- Collects system metrics at configurable intervals
+- Stores metrics in a structured format
+- Provides an HTTP API for updating and retrieving metrics
+- Simple deployment with standalone binaries
 
-1. Склонируйте репозиторий в любую подходящую директорию на вашем компьютере.
-2. В корне репозитория выполните команду `go mod init <name>` (где `<name>` — адрес вашего репозитория на GitHub без префикса `https://`) для создания модуля.
+## Getting Started
 
-## Обновление шаблона
+### Running the Server
 
-Чтобы иметь возможность получать обновления автотестов и других частей шаблона, выполните команду:
+1) Build the server binary:
+    ```sh
+    go build -o server cmd/server/main.go
+    ```
 
+2) Start the server:
+    ```sh
+    ./server -a localhost:8080
+    ```
+    - `-a` specifies the server address (default: `localhost:8080`).
+
+### Running the Agent
+
+1) Build the agent binary:
+    ```sh
+    go build -o agent cmd/agent/main.go
+    ```
+
+2) Start the agent:
+    ```sh
+    ./agent -a localhost:8080 -r 10 -p 2
+    ```
+    - `-a` specifies the server address.
+    - `-r` sets the report interval in seconds.
+    - `-p` sets the metric collection interval in seconds.
+
+---
+
+## API Reference
+
+### List Metrics
+**Endpoint:** `GET /`
+
+**Description:** Returns an HTML page with a table of all stored metrics.
+
+---
+
+### Retrieve a Metric
+**Endpoint:** `GET /value/{metricType}/{metricName}`
+
+**Description:** Retrieves the value of a specific metric.
+
+**Path Parameters:**
+- `metricType` (string): The type of metric (`gauge` or `counter`).
+- `metricName` (string): The name of the metric.
+
+**Response:**
+- `200 OK`: Metric value returned in the response body.
+- `404 Not Found`: Metric does not exist.
+- `400 Bad Request`: Invalid metric type.
+
+**Example Request:**
+```sh
+curl -X GET http://localhost:8080/value/gauge/cpu_usage
 ```
-git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
+
+**Example Response:**
+```
+45.3
 ```
 
-Для обновления кода автотестов выполните команду:
+---
 
+### Update a Metric
+**Endpoint:** `POST /update/{metricType}/{metricName}/{metricValue}`
+
+**Description:** Updates or creates a metric with the specified value.
+
+**Path Parameters:**
+- `metricType` (string): The type of metric (`gauge` or `counter`).
+- `metricName` (string): The name of the metric.
+- `metricValue` (number): The value to assign to the metric.
+
+**Response:**
+- `200 OK`: Metric successfully updated.
+- `400 Bad Request`: Invalid metric type or value.
+
+**Example Request:**
+```sh
+curl -X POST http://localhost:8080/update/gauge/cpu_usage/45.3
 ```
-git fetch template && git checkout template/main .github
+
+---
+
+## Tests
+
+**Running external tests:** `iter1 -> iter5`
+
+```shell
+metricstest \
+-test.run="^TestIteration([1-5]|[1-5][A-Z])$" \
+-agent-binary-path=cmd/agent/agent \
+-binary-path=cmd/server/server \
+-source-path=. \
+-server-port=9000
 ```
 
-Затем добавьте полученные изменения в свой репозиторий.
+**Running statictests:** 
 
-## Запуск автотестов
-
-Для успешного запуска автотестов называйте ветки `iter<number>`, где `<number>` — порядковый номер инкремента. Например, в ветке с названием `iter4` запустятся автотесты для инкрементов с первого по четвёртый.
-
-При мёрже ветки с инкрементом в основную ветку `main` будут запускаться все автотесты.
-
-Подробнее про локальный и автоматический запуск читайте в [README автотестов](https://github.com/Yandex-Practicum/go-autotests).
+```shell
+go vet -vettool=`which statictest` ./...
+```

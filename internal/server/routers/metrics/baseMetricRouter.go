@@ -22,10 +22,12 @@ func (h *Router) Routes() chi.Router {
 
 	r.Get("/", h.ListMetrics)
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/{metricType}/{metricName}/{metricValue}", h.CreateMetric)
+		r.Post("/", h.CreateMetricFromJSON)
+		r.Post("/{metricType}/{metricName}/{metricValue}", h.CreateMetricFromURL)
 	})
 	r.Route("/value", func(r chi.Router) {
-		r.Get("/{metricType}/{metricName}", h.GetMetric)
+		r.Post("/", h.GetMericFromJSON)
+		r.Get("/{metricType}/{metricName}", h.GetMetricFromURL)
 	})
 	return r
 }

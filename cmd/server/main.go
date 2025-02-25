@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/rshafikov/alertme/internal/server/config"
 	"github.com/rshafikov/alertme/internal/server/routers/metrics"
@@ -23,6 +22,6 @@ func runServer() error {
 	r := chi.NewRouter()
 	r.Mount("/", mR.Routes())
 
-	fmt.Println("Listening on:", config.Address.String())
+	config.Log.Infoln("Listening on", config.Address.String())
 	return http.ListenAndServe(config.Address.String(), r)
 }

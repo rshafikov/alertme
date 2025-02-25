@@ -5,13 +5,21 @@ import (
 	"github.com/rshafikov/alertme/internal/agent"
 	"github.com/rshafikov/alertme/internal/agent/config"
 	"github.com/rshafikov/alertme/internal/agent/metrics"
+	"net/url"
 	"time"
 )
 
 func main() {
 	config.InitAgentConfiguration()
 	dc := metrics.NewEmptyDataCollector()
-	client := agent.NewClient("http://" + config.ServerAddress.String())
+
+	baseURL, err := url.Parse("http://" + config.ServerAddress.String())
+	if err != nil {
+		fmt.Println("invalid base URL:", err)
+		return
+	}
+
+	client := agent.NewClient(baseURL)
 	pollTicker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
 	reportTicker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
 

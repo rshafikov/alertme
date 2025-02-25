@@ -1,42 +1,52 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/rshafikov/alertme/internal/agent/metrics"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"net/http"
 	"net/url"
-	"path"
-	"strconv"
 )
 
 type Client struct {
-	URL string
+	URL *url.URL
 }
 
-func NewClient(url string) *Client {
-	return &Client{URL: url}
+func NewClient(serverURL *url.URL) *Client {
+	return &Client{URL: serverURL}
 }
 
 func (c *Client) SendStoredData(data *metrics.DataCollector) {
 	for _, m := range data.Metrics {
-		c.sendMetric(m.Type, m.Name, strconv.FormatFloat(m.Value, 'f', -1, 64))
+
+		c.sendMetric(&models.MetricJSONReq{
+			ID:    m.Name,
+			MType: string(m.Type),
+			Value: &m.Value,
+		})
 	}
-	c.sendMetric(data.PollCount.Type, data.PollCount.Name, strconv.FormatInt(data.PollCount.Value, 10))
+	c.sendMetric(&models.MetricJSONReq{
+		ID:    data.PollCount.Name,
+		MType: string(data.PollCount.Type),
+		Delta: &data.PollCount.Value,
+	})
 }
 
-func (c *Client) sendMetric(metricType models.MetricType, metricName, metricValue string) {
-	baseURL, err := url.Parse(c.URL)
+func (c *Client) sendMetric(metric *models.MetricJSONReq) {
+	jsonBody, err := json.Marshal(metric)
 	if err != nil {
-		fmt.Println("invalid base URL:", err)
+		fmt.Println("failed to serialize metric:", err)
+	}
+	resp, reqErr := http.Post(c.URL.String()+"/update/", "application/json", bytes.NewBuffer(jsonBody))
+	if reqErr != nil {
+		fmt.Println("failed to send metric:", reqErr)
 		return
 	}
-	baseURL.Path = path.Join(baseURL.Path, "update", string(metricType), metricName, metricValue)
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println("failed to send metric:", resp.Status)
+	}
 
-	resp, err := http.Post(baseURL.String(), "text/plain", nil)
-	if err != nil {
-		fmt.Println("failed to send metric:", err)
-		return
-	}
 	defer resp.Body.Close()
 }

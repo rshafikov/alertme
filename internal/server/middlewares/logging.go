@@ -29,8 +29,8 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.respData.status = statusCode
 }
 
-func LoggingMiddleware(h http.Handler) http.Handler {
-	logFn := func(w http.ResponseWriter, r *http.Request) {
+func Logger(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
 		rData := &respData{
@@ -49,6 +49,5 @@ func LoggingMiddleware(h http.Handler) http.Handler {
 			`- "%s %s" %d %s %s %d`,
 			r.Method, r.RequestURI, rData.status, http.StatusText(rData.status), duration.String(), rData.size,
 		)
-	}
-	return http.HandlerFunc(logFn)
+	})
 }

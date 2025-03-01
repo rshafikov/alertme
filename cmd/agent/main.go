@@ -40,7 +40,7 @@ func main() {
 
 func CollectMetrics(dc *metrics.DataCollector) {
 	dc.UpdateMetrics()
-	fmt.Println(dc)
+	fmt.Println("Metrics were updated")
 }
 
 func SendMetrics(client *agent.Client, dataCollector *metrics.DataCollector) {

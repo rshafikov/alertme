@@ -17,8 +17,9 @@ func NewMetricsRouter(store storage.BaseMetricStorage) *Router {
 
 func (h *Router) Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Use(middlewares.LoggingMiddleware)
+	r.Use(middlewares.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(middlewares.GZipper)
 
 	r.Get("/", h.ListMetrics)
 	r.Route("/update", func(r chi.Router) {

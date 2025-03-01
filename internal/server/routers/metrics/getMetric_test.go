@@ -10,13 +10,17 @@ import (
 	"testing"
 )
 
+const getResourceRESTPath = "/value"
+const getResourceRESTMethod = http.MethodGet
+
 func TestMetricsHandler_GetMetric(t *testing.T) {
-	const baseHandlerPath = "/value"
-	const handlerMethod = http.MethodGet
 	memStorage := storage.NewMemStorage()
 	router := NewMetricsRouter(memStorage)
 	ts := httptest.NewServer(router.Routes())
 	defer ts.Close()
+
+	var notCompress bool
+	client := NewHTTPClient(ts.URL+getResourceRESTPath, notCompress)
 
 	testGaugeMetric1 := models.Metric{
 		Value: "0.0000001",
@@ -42,79 +46,65 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 	err := FillStorageWithTestData(memStorage, metrics)
 	require.NoError(t, err)
 
-	type want struct {
-		code        int
-		response    string
-		contentType string
-	}
 	tests := []struct {
-		name string
-		url  string
-		want want
+		name                string
+		url                 string
+		expectedCode        int
+		expectedResponse    string
+		expectedContentType string
 	}{
 		{
-			name: "get a counter metric #1",
-			url:  "/" + string(testCounterMetric1.Type) + "/" + testCounterMetric1.Name,
-			want: want{
-				code:        http.StatusOK,
-				response:    testCounterMetric1.Value,
-				contentType: "text/plain; charset=utf-8",
-			},
+			name:                "get a counter metric #1",
+			url:                 "/" + string(testCounterMetric1.Type) + "/" + testCounterMetric1.Name,
+			expectedCode:        http.StatusOK,
+			expectedResponse:    testCounterMetric1.Value,
+			expectedContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "get a counter metric #2",
-			url:  "/" + string(testCounterMetric2.Type) + "/" + testCounterMetric2.Name,
-			want: want{
-				code:        http.StatusOK,
-				response:    testCounterMetric2.Value,
-				contentType: "text/plain; charset=utf-8",
-			},
+			name:                "get a counter metric #2",
+			url:                 "/" + string(testCounterMetric2.Type) + "/" + testCounterMetric2.Name,
+			expectedCode:        http.StatusOK,
+			expectedResponse:    testCounterMetric2.Value,
+			expectedContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "get a gauge metric #1",
-			url:  "/" + string(testGaugeMetric1.Type) + "/" + testGaugeMetric1.Name,
-			want: want{
-				code:        http.StatusOK,
-				response:    testGaugeMetric1.Value,
-				contentType: "text/plain; charset=utf-8",
-			},
+			name:                "get a gauge metric #1",
+			url:                 "/" + string(testGaugeMetric1.Type) + "/" + testGaugeMetric1.Name,
+			expectedCode:        http.StatusOK,
+			expectedResponse:    testGaugeMetric1.Value,
+			expectedContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "get a gauge metric #2",
-			url:  "/" + string(testGaugeMetric2.Type) + "/" + testGaugeMetric2.Name,
-			want: want{
-				code:        http.StatusOK,
-				response:    testGaugeMetric2.Value,
-				contentType: "text/plain; charset=utf-8",
-			},
+			name:                "get a gauge metric #2",
+			url:                 "/" + string(testGaugeMetric2.Type) + "/" + testGaugeMetric2.Name,
+			expectedCode:        http.StatusOK,
+			expectedResponse:    testGaugeMetric2.Value,
+			expectedContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "get a metric with unknown type",
-			url:  "/unknownType/someName",
-			want: want{
-				code:        http.StatusBadRequest,
-				response:    "invalid metric type\n",
-				contentType: "text/plain; charset=utf-8",
-			},
+			name:                "get a metric with unknown type",
+			url:                 "/unknownType/someName",
+			expectedCode:        http.StatusBadRequest,
+			expectedResponse:    "invalid metric type\n",
+			expectedContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "get a metric with unknown name",
-			url:  "/counter/someName",
-			want: want{
-				code:        http.StatusNotFound,
-				response:    "cannot find metric in storage\n",
-				contentType: "text/plain; charset=utf-8",
-			},
+			name:                "get a metric with unknown name",
+			url:                 "/counter/someName",
+			expectedCode:        http.StatusNotFound,
+			expectedResponse:    "cannot find metric in storage\n",
+			expectedContentType: "text/plain; charset=utf-8",
 		},
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resp, respBody := testRequest(t, ts, handlerMethod, baseHandlerPath+test.url)
+			resp, respBody := client.URLRequest(t, getResourceRESTMethod, test.url)
 			defer resp.Body.Close()
 
-			assert.Equal(t, test.want.code, resp.StatusCode)
-			assert.Equal(t, test.want.response, respBody)
-			assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+			assert.Equal(t, test.expectedCode, resp.StatusCode)
+			assert.Equal(t, test.expectedResponse, respBody)
+			assert.Equal(t, test.expectedContentType, resp.Header.Get("Content-Type"))
 		})
 	}
 }

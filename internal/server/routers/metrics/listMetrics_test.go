@@ -11,11 +11,16 @@ import (
 	"testing"
 )
 
+const indexPath = "/"
+
 func TestMetricsHandler_ListMetrics(t *testing.T) {
 	memStorage := storage.NewMemStorage()
 	router := NewMetricsRouter(memStorage)
 	ts := httptest.NewServer(router.Routes())
 	defer ts.Close()
+
+	var notCompress bool
+	client := NewHTTPClient(ts.URL+indexPath, notCompress)
 
 	testGaugeMetric1 := models.Metric{
 		Value: "0.0000001",
@@ -42,7 +47,7 @@ func TestMetricsHandler_ListMetrics(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("get all metrics", func(t *testing.T) {
-		resp, respBody := testRequest(t, ts, http.MethodGet, "/")
+		resp, respBody := client.URLRequest(t, http.MethodGet, "")
 		defer resp.Body.Close()
 		fmt.Println(respBody)
 

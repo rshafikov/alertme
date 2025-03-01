@@ -1,36 +1,66 @@
 package metrics
 
 import (
-	"github.com/go-chi/chi/v5"
+	"encoding/json"
+	"github.com/rshafikov/alertme/internal/server/config"
 	"github.com/rshafikov/alertme/internal/server/models"
-	"log"
 	"net/http"
 )
 
-func (h *Router) GetMetric(w http.ResponseWriter, r *http.Request) {
-	metricType := models.MetricType(chi.URLParam(r, "metricType"))
-	metricName := chi.URLParam(r, "metricName")
-
-	if metricName == "" {
-		log.Println("metric name is required")
-		http.Error(w, "metric name is required", http.StatusNotFound)
+func (h *Router) GetMetricFromURL(w http.ResponseWriter, r *http.Request) {
+	metric, reqErr := h.ParseMetricFromURL(r)
+	if reqErr != nil {
+		RespondWithError(w, reqErr)
 		return
 	}
 
-	if !(metricType == models.CounterType || metricType == models.GaugeType) {
-		log.Println("invalid metric type")
-		http.Error(w, "invalid metric type", http.StatusBadRequest)
-		return
-	}
-
-	metric, err := h.store.Get(metricType, metricName)
+	storedMetric, err := h.store.Get(metric.Type, metric.Name)
 	if err != nil {
-		log.Println("ERR", "cannot find metric in storage", err)
-		http.Error(w, "cannot find metric in storage", http.StatusNotFound)
+		config.Log.Debug(UnableToFindMetricErrMsg)
+		RespondWithError(w, NewRequestError(UnableToFindMetricErrMsg, http.StatusNotFound))
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(metric.Value))
+	_, err = w.Write([]byte(storedMetric.Value))
+	if err != nil {
+		config.Log.Debug(UnableToWriteRespErrMsg)
+		return
+	}
+
+}
+
+func (h *Router) GetMericFromJSON(w http.ResponseWriter, r *http.Request) {
+	metric, reqErr := h.ParseMetricFromJSON(r)
+	if reqErr != nil {
+		RespondWithError(w, reqErr)
+		return
+	}
+
+	storedMetric, err := h.store.Get(metric.Type, metric.Name)
+	if err != nil {
+		config.Log.Debug(UnableToFindMetricErrMsg)
+		RespondWithError(w, NewRequestError(UnableToFindMetricErrMsg, http.StatusNotFound))
+		return
+	}
+
+	var respMetric models.MetricJSONReq
+	respMetric.ConvertToBaseMetric(&storedMetric)
+
+	jsonBytes, err := json.Marshal(respMetric)
+	if err != nil {
+		config.Log.Debug(UnableToEncodeJSONErrMsg)
+		RespondWithError(w, NewRequestError(UnableToEncodeJSONErrMsg, http.StatusInternalServerError))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(jsonBytes)
+	if err != nil {
+		config.Log.Debug(UnableToWriteRespErrMsg)
+		return
+	}
+
 }

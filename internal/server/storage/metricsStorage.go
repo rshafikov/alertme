@@ -17,21 +17,21 @@ const (
 )
 
 type UnsupportedMetricTypeError struct {
-	arg     string
-	message string
+	Arg     string
+	Message string
 }
 
 func (e *UnsupportedMetricTypeError) Error() string {
-	return fmt.Sprintf("'%s' <- %s", e.arg, e.message)
+	return fmt.Sprintf("'%s' <- %s", e.Arg, e.Message)
 }
 
 type IncorrectMetricValueError struct {
-	arg     string
-	message string
+	Arg     string
+	Message string
 }
 
 func (e *IncorrectMetricValueError) Error() string {
-	return fmt.Sprintf("'%s' <- %s", e.arg, e.message)
+	return fmt.Sprintf("'%s' <- %s", e.Arg, e.Message)
 }
 
 type MemStorage struct {
@@ -55,14 +55,14 @@ func (s *MemStorage) Add(m *models.Metric) error {
 	case models.GaugeType:
 		value, err := strconv.ParseFloat(m.Value, 64)
 		if err != nil {
-			return &IncorrectMetricValueError{arg: m.Value, message: CannotConvertToFloatErrMsg}
+			return &IncorrectMetricValueError{Arg: m.Value, Message: CannotConvertToFloatErrMsg}
 		}
 		newGaugeMetric := models.GaugeMetric{Type: m.Type, Name: m.Name, Value: value}
 		s.Gauges[m.Name] = newGaugeMetric
 	case models.CounterType:
 		value, err := strconv.ParseInt(m.Value, 10, 64)
 		if err != nil {
-			return &IncorrectMetricValueError{arg: m.Value, message: CannotConvertToIntErrMsg}
+			return &IncorrectMetricValueError{Arg: m.Value, Message: CannotConvertToIntErrMsg}
 		}
 		if oldMetric, ok := s.Counters[m.Name]; ok {
 			value += oldMetric.Value
@@ -70,7 +70,7 @@ func (s *MemStorage) Add(m *models.Metric) error {
 		newCounterMetric := models.CounterMetric{Type: m.Type, Name: m.Name, Value: value}
 		s.Counters[m.Name] = newCounterMetric
 	default:
-		return &UnsupportedMetricTypeError{arg: string(m.Type), message: UnsupportedMetricTypeErrMsg}
+		return &UnsupportedMetricTypeError{Arg: string(m.Type), Message: UnsupportedMetricTypeErrMsg}
 	}
 
 	return nil

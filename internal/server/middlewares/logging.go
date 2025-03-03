@@ -1,7 +1,8 @@
 package middlewares
 
 import (
-	"github.com/rshafikov/alertme/internal/server/config"
+	"github.com/rshafikov/alertme/internal/server/logger"
+	"go.uber.org/zap"
 	"net/http"
 	"time"
 )
@@ -45,9 +46,13 @@ func Logger(h http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
-		config.Log.Infof(
-			`- "%s %s" %d %s %s %d`,
-			r.Method, r.RequestURI, rData.status, http.StatusText(rData.status), duration.String(), rData.size,
+		logger.Log.Info("-",
+			zap.String("method", r.Method),
+			zap.String("uri", r.RequestURI),
+			zap.Int("status", rData.status),
+			zap.String("status_text", http.StatusText(rData.status)),
+			zap.String("duration", duration.String()),
+			zap.Int("size", rData.size),
 		)
 	})
 }

@@ -1,8 +1,8 @@
 package metrics
 
 import (
-	"github.com/rshafikov/alertme/internal/server/config"
 	"github.com/rshafikov/alertme/internal/server/errmsg"
+	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"html/template"
 	"net/http"
@@ -43,7 +43,7 @@ func (h *Router) ListMetrics(w http.ResponseWriter, r *http.Request) {
 
 	t, err := template.New("metrics").Parse(tmpl)
 	if err != nil {
-		config.Log.Debug(errmsg.UnableToParseTemplate)
+		logger.Log.Debug(errmsg.UnableToParseTemplate)
 		http.Error(w, errmsg.UnableToParseTemplate, http.StatusInternalServerError)
 		return
 	}
@@ -53,7 +53,7 @@ func (h *Router) ListMetrics(w http.ResponseWriter, r *http.Request) {
 
 	err = t.Execute(w, plainMetrics)
 	if err != nil {
-		config.Log.Debug(errmsg.UnableToWriteTemplate)
+		logger.Log.Debug(errmsg.UnableToWriteTemplate)
 		http.Error(w, errmsg.UnableToWriteTemplate, http.StatusInternalServerError)
 	}
 }

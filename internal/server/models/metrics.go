@@ -81,7 +81,3 @@ func NewMetric(metricType MetricType, metricName, metricValue string) (*Metric, 
 	}
 	return plainMetric.ConverToMetric()
 }
-
-//type Metrics struct {
-//	List []*Metric `json:"metrics"`
-//}

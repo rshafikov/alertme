@@ -4,9 +4,6 @@ env:
 
   TASK_X_MAP_VARIABLES: 1
 
-  BRANCH_NUMBER:
-    sh: git branch --show-current | grep -o '[0-9]\+'
-
   AGENT_BIN_DIR: cmd/agent
   AGENT_BIN_NAME: agent
   AGENT_BIN_PATH: "{{.AGENT_BIN_DIR}}/{{.AGENT_BIN_NAME}}"
@@ -16,6 +13,7 @@ env:
   SERVER_BIN_PATH: "{{.SERVER_BIN_DIR}}/{{.SERVER_BIN_NAME}}"
   SERVER_PORT: 8888
   SERVER_STORAGE_FILE_PATH: "metrics.backup.txt"
+  DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
 
 tasks:
 
@@ -28,9 +26,7 @@ tasks:
       - go build -v -o "{{.AGENT_BIN_PATH}}" "{{.AGENT_BIN_DIR}}/main.go"
 
   build:
-    cmds:
-      - task: build-agent
-      - task: build-server
+    deps: [ build-agent, build-server ]
 
   run-server:
     deps: [ build-server ]
@@ -52,9 +48,8 @@ tasks:
       - go test {{.CACHED}}  ./...
 
   tests:
-    deps: [ linter, build ]
+    deps: [ linter, unit-tests, build ]
     cmds:
-      - task: unit-tests
       - >-
         metricstest
         -test.v
@@ -62,15 +57,14 @@ tasks:
         -binary-path="{{.SERVER_BIN_PATH}}"
         -server-port="{{.SERVER_PORT}}"
         -agent-binary-path="{{.AGENT_BIN_PATH}}"
-        -test.run="^TestIteration([1-{{.BRANCH_NUMBER}}]|[1-{{.BRANCH_NUMBER}}][A-Z])$"
+        -test.run="^TestIteration([1-9]|[0-9][A-Z])$"
         -file-storage-path={{.SERVER_STORAGE_FILE_PATH}}
 
   test-iter-*:
-    deps: [ linter, build ]
+    deps: [ linter, unit-tests, build ]
     vars:
       ITER: '{{index .MATCH 0}}'
     cmds:
-      - task: unit-tests
       - >-
         metricstest
         -test.v
@@ -80,3 +74,4 @@ tasks:
         -agent-binary-path="{{.AGENT_BIN_PATH}}"
         -test.run="^TestIteration{{.ITER}}"
         -file-storage-path={{.SERVER_STORAGE_FILE_PATH}}
+        -database-dsn={{.DATABASE_DSN}}

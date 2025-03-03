@@ -5,18 +5,23 @@ import (
 	"github.com/rshafikov/alertme/internal/agent"
 	"github.com/rshafikov/alertme/internal/agent/config"
 	"github.com/rshafikov/alertme/internal/agent/metrics"
+	"github.com/rshafikov/alertme/internal/server/logger"
+	"log"
 	"net/url"
 	"time"
 )
 
 func main() {
 	config.InitAgentConfiguration()
+	if err := logger.Initialize(config.LogLevel); err != nil {
+		log.Fatal(err)
+	}
+
 	dc := metrics.NewEmptyDataCollector()
 
 	baseURL, err := url.Parse("http://" + config.ServerAddress.String())
 	if err != nil {
-		fmt.Println("invalid base URL:", err)
-		return
+		log.Fatal(err)
 	}
 
 	client := agent.NewClient(baseURL)

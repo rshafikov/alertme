@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"strconv"
 	"strings"
 )
@@ -16,6 +15,7 @@ const (
 	baseStoreInterval   = 300
 	baseFileStoragePath = "metrics.txt"
 	baseRestore         = false
+	baseLogLevel        = "info"
 )
 
 type netAddress struct {
@@ -30,7 +30,7 @@ func (na *netAddress) String() string {
 func (na *netAddress) Set(s string) error {
 	hp := strings.Split(s, ":")
 	if len(hp) != 2 {
-		return errors.New("need address in a form host:port")
+		return errors.New("supported format: host:port")
 	}
 	_, err := strconv.Atoi(hp[1])
 	if err != nil {
@@ -41,56 +41,88 @@ func (na *netAddress) Set(s string) error {
 	return nil
 }
 
+type dbSettings struct {
+	Driver   string
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Name     string
+}
+
+// postgres://postgres:password@localhost:5432/postgres
+func (dbu *dbSettings) String() string {
+	url := fmt.Sprintf("%s://%s:%s@%s:%s/%s", dbu.Driver, dbu.User, dbu.Password, dbu.Host, dbu.Port, dbu.Name)
+	if url == "://:@:/" {
+		url = ""
+	}
+	return url
+}
+
+func (dbu *dbSettings) Set(s string) error {
+	parsed := strings.Split(s, "://")
+	if len(parsed) != 2 || parsed[0] == "" {
+		return errors.New("supported format: postgres://user:password@host:port/dbname")
+	}
+
+	dbu.Driver = parsed[0]
+	credentialsHostDB := parsed[1]
+	atIndex := strings.LastIndex(credentialsHostDB, "@")
+	if atIndex == -1 {
+		return errors.New("invalid url: missing '@'")
+	}
+
+	credentials := credentialsHostDB[:atIndex]
+	hostDB := credentialsHostDB[atIndex+1:]
+
+	creds := strings.SplitN(credentials, ":", 2)
+	if len(creds) != 2 {
+		return errors.New("invalid url: missing or invalid credentials")
+	}
+	dbu.User = creds[0]
+	dbu.Password = creds[1]
+
+	slashIndex := strings.LastIndex(hostDB, "/")
+	if slashIndex == -1 {
+		return errors.New("invalid url: missing '/' before dbname")
+	}
+	hostPort := hostDB[:slashIndex]
+	dbu.Name = hostDB[slashIndex+1:]
+
+	colonIndex := strings.LastIndex(hostPort, ":")
+	if colonIndex == -1 {
+		return errors.New("invalid url: missing ':' in host:port")
+	}
+	dbu.Host = hostPort[:colonIndex]
+	dbu.Port = hostPort[colonIndex+1:]
+
+	return nil
+}
+
 var Address = netAddress{Host: baseHost, Port: baseHostPort}
+var DatabaseSettings = dbSettings{}
 var StoreInterval int
 var FileStoragePath string
 var Restore bool
+var LogLevel string
+var DatabaseURL string
 
 func InitServerFlags() {
 	_ = flag.Value(&Address)
 	flag.Var(&Address, "a", "server address")
+
+	_ = flag.Value(&DatabaseSettings)
+	flag.Var(&DatabaseSettings, "d", "database url")
+
 	flag.IntVar(&StoreInterval, "i", baseStoreInterval, "interval to store metrics, in seconds")
 	flag.StringVar(&FileStoragePath, "f", baseFileStoragePath, "storage path - file to store metrics")
 	flag.BoolVar(&Restore, "r", baseRestore, "restore metrics from file, specified in the storage path")
+	flag.StringVar(&LogLevel, "l", baseLogLevel, "log level")
 	flag.Parse()
 
 	if StoreInterval < 0 {
 		log.Fatal("store interval cannot be negative")
 	}
-}
 
-func InitServerConfiguration() {
-	InitServerFlags()
-
-	if err := ParseEnv(); err == nil {
-		if ServerEnv.ServerAddress != "" {
-			host, port, err := net.SplitHostPort(ServerEnv.ServerAddress)
-			if err != nil {
-				log.Fatalln("invalid ADDRESS environment variable:", ServerEnv.ServerAddress)
-			}
-			Address.Host = host
-			Address.Port = port
-		}
-		if ServerEnv.StoreInteval >= 0 {
-			StoreInterval = ServerEnv.StoreInteval
-		}
-		if ServerEnv.FileStoragePath != "" {
-			FileStoragePath = ServerEnv.FileStoragePath
-		}
-		if ServerEnv.Restore {
-			Restore = ServerEnv.Restore
-		}
-	}
-
-	Log.Infof("\n"+
-		"\033[1;36m╭────────────────────────────────────────\033[0m\n"+
-		"\033[1;36m│ \033[1;34m🚀 Server Initialized Successfully \033[1;36m\033[0m\n"+
-		"\033[1;36m├────────────────────────────────────────\033[0m\n"+
-		"\033[1;37m│ \033[1;33m📡 Address:         \033[0;37m%-47s \033[1;36m\033[0m\n"+
-		"\033[1;37m│ \033[1;33m⏱  Store Interval:  \033[0;37m%-47d \033[1;36m\033[0m\n"+
-		"\033[1;37m│ \033[1;33m💾 Storage Path:    \033[0;37m%-47s \033[1;36m\033[0m\n"+
-		"\033[1;37m│ \033[1;33m🔄 Restore State:   \033[0;37m%-47t \033[1;36m\033[0m\n"+
-		"\033[1;36m╰────────────────────────────────────────\033[0m",
-		Address.String(), StoreInterval, FileStoragePath, Restore,
-	)
+	DatabaseURL = DatabaseSettings.String()
 }

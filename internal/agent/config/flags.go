@@ -3,7 +3,7 @@ package config
 import (
 	"flag"
 	"fmt"
-	"github.com/rshafikov/alertme/internal/server/config"
+	"github.com/rshafikov/alertme/internal/server/logger"
 	"log"
 	"net"
 	"strconv"
@@ -14,6 +14,7 @@ const (
 	defaultPort           = "8080"
 	defaultReportInterval = 10
 	defaultPollInterval   = 2
+	baseLogLevel          = "info"
 )
 
 type netAddress struct {
@@ -42,11 +43,13 @@ func (na *netAddress) Set(value string) error {
 var ServerAddress = netAddress{Host: defaultHost, Port: defaultPort}
 var ReportInterval int
 var PollInterval int
+var LogLevel string
 
 func InitAgentFlags() {
 	flag.Var(&ServerAddress, "a", "server address")
 	flag.IntVar(&ReportInterval, "r", defaultReportInterval, "report interval")
 	flag.IntVar(&PollInterval, "p", defaultPollInterval, "poll interval")
+	flag.StringVar(&LogLevel, "l", baseLogLevel, "log level")
 	flag.Parse()
 	if ReportInterval <= 0 {
 		log.Fatal("report interval cannot be negative or null")
@@ -72,8 +75,11 @@ func InitAgentConfiguration() {
 		if Env.PollIntrv > 0 {
 			PollInterval = Env.PollIntrv
 		}
+		if Env.LogLevel != "" {
+			LogLevel = Env.LogLevel
+		}
 	}
-	config.Log.Infof("\n"+
+	logger.Log.Sugar().Infof("\n"+
 		"\033[1;36m╭────────────────────────────────────────\033[0m\n"+
 		"\033[1;36m│ \033[1;34m🚀 Agent Initialized Successfully \033[1;36m\033[0m\n"+
 		"\033[1;36m├────────────────────────────────────────\033[0m\n"+

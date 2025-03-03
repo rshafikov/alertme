@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/rshafikov/alertme/internal/server/logger"
 	"log"
 	"net"
 	"strconv"
@@ -16,6 +17,7 @@ const (
 	baseStoreInterval   = 300
 	baseFileStoragePath = "metrics.txt"
 	baseRestore         = false
+	baseLogLevel        = "info"
 )
 
 type netAddress struct {
@@ -45,6 +47,7 @@ var Address = netAddress{Host: baseHost, Port: baseHostPort}
 var StoreInterval int
 var FileStoragePath string
 var Restore bool
+var LogLevel string
 
 func InitServerFlags() {
 	_ = flag.Value(&Address)
@@ -52,6 +55,7 @@ func InitServerFlags() {
 	flag.IntVar(&StoreInterval, "i", baseStoreInterval, "interval to store metrics, in seconds")
 	flag.StringVar(&FileStoragePath, "f", baseFileStoragePath, "storage path - file to store metrics")
 	flag.BoolVar(&Restore, "r", baseRestore, "restore metrics from file, specified in the storage path")
+	flag.StringVar(&LogLevel, "l", baseLogLevel, "log level")
 	flag.Parse()
 
 	if StoreInterval < 0 {
@@ -80,9 +84,12 @@ func InitServerConfiguration() {
 		if ServerEnv.Restore {
 			Restore = ServerEnv.Restore
 		}
+		if ServerEnv.LogLevel != "" {
+			LogLevel = ServerEnv.LogLevel
+		}
 	}
 
-	Log.Infof("\n"+
+	logger.Log.Sugar().Infof("\n"+
 		"\033[1;36m╭────────────────────────────────────────\033[0m\n"+
 		"\033[1;36m│ \033[1;34m🚀 Server Initialized Successfully \033[1;36m\033[0m\n"+
 		"\033[1;36m├────────────────────────────────────────\033[0m\n"+

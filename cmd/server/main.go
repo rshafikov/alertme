@@ -3,15 +3,21 @@ package main
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/rshafikov/alertme/internal/server/config"
+	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/routers/metrics"
 	"github.com/rshafikov/alertme/internal/server/storage"
+	"go.uber.org/zap"
+	"log"
 	"net/http"
 )
 
 func main() {
 	config.InitServerConfiguration()
+	if err := logger.Initialize(config.LogLevel); err != nil {
+		log.Fatal(err)
+	}
 	if err := runServer(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -22,9 +28,9 @@ func runServer() error {
 	if config.Restore {
 		loadErr := fileSaver.LoadStorage(memStorage)
 		if loadErr != nil {
-			config.Log.Errorf("Failed to load metrics to storage: %v", loadErr)
+			logger.Log.Error("Failed to load metrics to storage:", zap.Error(loadErr))
 		} else {
-			config.Log.Info("Metrics successfully loaded to storage")
+			logger.Log.Info("Metrics successfully loaded to storage")
 		}
 	}
 
@@ -38,6 +44,6 @@ func runServer() error {
 	r := chi.NewRouter()
 	r.Mount("/", mR.Routes())
 
-	config.Log.Infoln("Listening on", config.Address.String())
+	logger.Log.Info("Listening on", zap.String("address", config.Address.String()))
 	return http.ListenAndServe(config.Address.String(), r)
 }

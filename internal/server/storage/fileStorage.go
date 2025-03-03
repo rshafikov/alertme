@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"github.com/rshafikov/alertme/internal/server/config"
 	"github.com/rshafikov/alertme/internal/server/errmsg"
+	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/models"
+	"go.uber.org/zap"
 	"os"
 	"time"
 )
@@ -68,7 +69,7 @@ func (l *FileLoader) LoadStorage(storage BaseMetricStorage) error {
 	for _, oldMetric := range oldMetrics {
 		err := storage.Add(oldMetric)
 		if err != nil {
-			config.Log.Errorln("Unable to add old metric to storage", err.Error())
+			logger.Log.Error("Unable to add old metric to storage", zap.Error(err))
 			return err
 		}
 	}
@@ -76,12 +77,12 @@ func (l *FileLoader) LoadStorage(storage BaseMetricStorage) error {
 }
 
 func (l *FileLoader) SaveStorage(storage BaseMetricStorage) error {
-	config.Log.Debugf("trying to save metrics to %s...", l.FileName)
+	logger.Log.Debug("trying to save metrics to", zap.String("filename", l.FileName))
 	err := l.SaveMetrics(storage.List())
 	if err != nil {
 		return errors.New(errmsg.UnableToSaveMetricInStorage)
 	}
-	config.Log.Debugf("metrics successfully saved to %s", l.FileName)
+	logger.Log.Debug("metrics successfully saved to", zap.String("filename", l.FileName))
 	return nil
 }
 

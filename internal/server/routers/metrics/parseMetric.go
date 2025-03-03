@@ -14,12 +14,9 @@ func (h *Router) ParseMetricFromURL(r *http.Request) (*models.Metric, int, error
 	metricName := chi.URLParam(r, "metricName")
 	metricStrValue := chi.URLParam(r, "metricValue")
 
-	if metricName == "" {
-		return nil, http.StatusNotFound, errors.New(errmsg.MetricNameRequired)
-	}
-
-	if !(metricType == models.CounterType || metricType == models.GaugeType) {
-		return nil, http.StatusBadRequest, errors.New(errmsg.InvalidMetricType)
+	errCode, err := h.baseMetricValidation(metricName, metricType)
+	if err != nil {
+		return nil, errCode, err
 	}
 
 	if r.Method != http.MethodGet {
@@ -46,12 +43,9 @@ func (h *Router) ParseMetricFromJSON(r *http.Request) (*models.Metric, int, erro
 		return nil, http.StatusBadRequest, errors.New(errmsg.UnableToDecodeJSON)
 	}
 
-	if reqMetric.Name == "" {
-		return nil, http.StatusNotFound, errors.New(errmsg.MetricNameRequired)
-	}
-
-	if !(reqMetric.Type == models.CounterType || reqMetric.Type == models.GaugeType) {
-		return nil, http.StatusBadRequest, errors.New(errmsg.InvalidMetricType)
+	errCode, err := h.baseMetricValidation(reqMetric.Name, reqMetric.Type)
+	if err != nil {
+		return nil, errCode, err
 	}
 
 	if r.URL.Path == "/update/" {
@@ -68,4 +62,16 @@ func (h *Router) ParseMetricFromJSON(r *http.Request) (*models.Metric, int, erro
 	}
 
 	return &reqMetric, http.StatusOK, nil
+}
+
+func (h *Router) baseMetricValidation(metricName string, metricType models.MetricType) (int, error) {
+	if metricName == "" {
+		return http.StatusNotFound, errors.New(errmsg.MetricNameRequired)
+	}
+
+	if !(metricType == models.CounterType || metricType == models.GaugeType) {
+		return http.StatusBadRequest, errors.New(errmsg.InvalidMetricType)
+	}
+
+	return http.StatusOK, nil
 }

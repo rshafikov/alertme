@@ -1,12 +1,14 @@
 package metrics
 
 import (
+	"github.com/rshafikov/alertme/internal/server/errmsg"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"github.com/rshafikov/alertme/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -22,27 +24,27 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 	var notCompress bool
 	client := NewHTTPClient(ts.URL+getResourceRESTPath, notCompress)
 
-	testGaugeMetric1 := models.Metric{
+	testGaugeMetric1 := models.PlainMetric{
 		Value: "0.0000001",
 		Name:  "gauge1",
 		Type:  models.GaugeType,
 	}
-	testGaugeMetric2 := models.Metric{
+	testGaugeMetric2 := models.PlainMetric{
 		Value: "1232.0000002",
 		Name:  "gauge2",
 		Type:  models.GaugeType,
 	}
-	testCounterMetric1 := models.Metric{
+	testCounterMetric1 := models.PlainMetric{
 		Value: "1",
 		Name:  "counter1",
 		Type:  models.CounterType,
 	}
-	testCounterMetric2 := models.Metric{
+	testCounterMetric2 := models.PlainMetric{
 		Value: "12321321321312312",
 		Name:  "counter2",
 		Type:  models.CounterType,
 	}
-	metrics := []models.Metric{testGaugeMetric1, testGaugeMetric2, testCounterMetric1, testCounterMetric2}
+	metrics := []models.PlainMetric{testGaugeMetric1, testGaugeMetric2, testCounterMetric1, testCounterMetric2}
 	err := FillStorageWithTestData(memStorage, metrics)
 	require.NoError(t, err)
 
@@ -85,14 +87,14 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 			name:                "get a metric with unknown type",
 			url:                 "/unknownType/someName",
 			expectedCode:        http.StatusBadRequest,
-			expectedResponse:    "invalid metric type\n",
+			expectedResponse:    errmsg.InvalidMetricType,
 			expectedContentType: "text/plain; charset=utf-8",
 		},
 		{
 			name:                "get a metric with unknown name",
 			url:                 "/counter/someName",
 			expectedCode:        http.StatusNotFound,
-			expectedResponse:    "cannot find metric in storage\n",
+			expectedResponse:    errmsg.MetricNotFound,
 			expectedContentType: "text/plain; charset=utf-8",
 		},
 	}
@@ -103,7 +105,7 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 			defer resp.Body.Close()
 
 			assert.Equal(t, test.expectedCode, resp.StatusCode)
-			assert.Equal(t, test.expectedResponse, respBody)
+			assert.Equal(t, test.expectedResponse, strings.TrimRight(respBody, "\n"))
 			assert.Equal(t, test.expectedContentType, resp.Header.Get("Content-Type"))
 		})
 	}

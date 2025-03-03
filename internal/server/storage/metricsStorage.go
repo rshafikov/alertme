@@ -3,47 +3,20 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 
+	"github.com/rshafikov/alertme/internal/server/errmsg"
 	"github.com/rshafikov/alertme/internal/server/models"
 )
 
-const (
-	NotFoundMetricErrMsg        = "metric not found"
-	UnsupportedMetricTypeErrMsg = "unsupported metric type"
-	CannotConvertToIntErrMsg    = "cannot convert to int"
-	CannotConvertToFloatErrMsg  = "cannot convert to float"
-)
-
-type UnsupportedMetricTypeError struct {
-	Arg     string
-	Message string
-}
-
-func (e *UnsupportedMetricTypeError) Error() string {
-	return fmt.Sprintf("'%s' <- %s", e.Arg, e.Message)
-}
-
-type IncorrectMetricValueError struct {
-	Arg     string
-	Message string
-}
-
-func (e *IncorrectMetricValueError) Error() string {
-	return fmt.Sprintf("'%s' <- %s", e.Arg, e.Message)
-}
-
 type MemStorage struct {
-	Gauges   map[string]models.GaugeMetric
-	Counters map[string]models.CounterMetric
-	mu       sync.RWMutex
+	mu      sync.RWMutex
+	metrics map[string]*models.Metric
 }
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		Gauges:   make(map[string]models.GaugeMetric),
-		Counters: make(map[string]models.CounterMetric),
+		metrics: make(map[string]*models.Metric),
 	}
 }
 
@@ -51,74 +24,62 @@ func (s *MemStorage) Add(m *models.Metric) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	existingMetric, exists := s.metrics[m.MapName()]
+
 	switch m.Type {
 	case models.GaugeType:
-		value, err := strconv.ParseFloat(m.Value, 64)
-		if err != nil {
-			return &IncorrectMetricValueError{Arg: m.Value, Message: CannotConvertToFloatErrMsg}
+		if m.Value == nil {
+			return errors.New(errmsg.MetricGaugeValueCannotBeNil)
 		}
-		newGaugeMetric := models.GaugeMetric{Type: m.Type, Name: m.Name, Value: value}
-		s.Gauges[m.Name] = newGaugeMetric
+		s.metrics[m.MapName()] = m
 	case models.CounterType:
-		value, err := strconv.ParseInt(m.Value, 10, 64)
-		if err != nil {
-			return &IncorrectMetricValueError{Arg: m.Value, Message: CannotConvertToIntErrMsg}
+		if m.Delta == nil {
+			return errors.New(errmsg.MetricCounterDeltaCannotBeNil)
 		}
-		if oldMetric, ok := s.Counters[m.Name]; ok {
-			value += oldMetric.Value
+		newDelta := *m.Delta
+		if exists {
+			newDelta += *existingMetric.Delta
 		}
-		newCounterMetric := models.CounterMetric{Type: m.Type, Name: m.Name, Value: value}
-		s.Counters[m.Name] = newCounterMetric
+		s.metrics[m.MapName()] = &models.Metric{
+			Name:  m.Name,
+			Type:  m.Type,
+			Delta: &newDelta,
+		}
 	default:
-		return &UnsupportedMetricTypeError{Arg: string(m.Type), Message: UnsupportedMetricTypeErrMsg}
+		return errors.New(errmsg.InvalidMetricType)
 	}
 
 	return nil
 }
 
-func (s *MemStorage) Get(metricType models.MetricType, name string) (models.Metric, error) {
+func (s *MemStorage) Get(metricType models.MetricType, metricName string) (*models.Metric, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	switch metricType {
-	case models.GaugeType:
-		if metric, ok := s.Gauges[name]; ok {
-			value := strconv.FormatFloat(metric.Value, 'f', -1, 64)
-			return models.Metric{Type: metric.Type, Name: metric.Name, Value: value}, nil
-		}
-		return models.Metric{}, errors.New(NotFoundMetricErrMsg)
-	case models.CounterType:
-		if metric, ok := s.Counters[name]; ok {
-			value := strconv.FormatInt(metric.Value, 10)
-			return models.Metric{Type: metric.Type, Name: metric.Name, Value: value}, nil
-		}
-		return models.Metric{}, errors.New(NotFoundMetricErrMsg)
-	default:
-		return models.Metric{}, errors.New(UnsupportedMetricTypeErrMsg)
+	metricMapName := fmt.Sprintf("%s-%s", metricType, metricName)
+	metric, exists := s.metrics[metricMapName]
+	if exists {
+		return metric, nil
 	}
 
+	return nil, errors.New(errmsg.MetricNotFound)
 }
 
-func (s *MemStorage) List() ([]models.Metric, error) {
+func (s *MemStorage) List() []*models.Metric {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	metrics := make([]models.Metric, 0, len(s.Gauges)+len(s.Counters))
-	for _, metric := range s.Gauges {
-		value := strconv.FormatFloat(metric.Value, 'f', -1, 64)
-		metrics = append(metrics, models.Metric{Type: metric.Type, Name: metric.Name, Value: value})
+	metrics := make([]*models.Metric, 0, len(s.metrics))
+	for _, metric := range s.metrics {
+		metrics = append(metrics, metric)
 	}
-	for _, metric := range s.Counters {
-		value := strconv.FormatInt(metric.Value, 10)
-		metrics = append(metrics, models.Metric{Type: metric.Type, Name: metric.Name, Value: value})
-	}
-	return metrics, nil
+
+	return metrics
 }
 
 func (s *MemStorage) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.Counters = make(map[string]models.CounterMetric)
-	s.Gauges = make(map[string]models.GaugeMetric)
+	s.metrics = make(map[string]*models.Metric)
 }

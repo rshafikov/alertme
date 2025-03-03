@@ -3,6 +3,7 @@ package metrics
 import (
 	"bytes"
 	"compress/gzip"
+	"github.com/rshafikov/alertme/internal/server/errmsg"
 	"github.com/rshafikov/alertme/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -76,7 +77,7 @@ func TestMetricsHandler_CreatePlaneMetric(t *testing.T) {
 			url:  "/unexistedmetrictype/someName/111",
 			want: want{
 				code:        http.StatusBadRequest,
-				response:    InvalidMetricTypeErrMsg,
+				response:    errmsg.InvalidMetricType,
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -94,7 +95,7 @@ func TestMetricsHandler_CreatePlaneMetric(t *testing.T) {
 			url:  "/gauge//111",
 			want: want{
 				code:        http.StatusNotFound,
-				response:    MetricNameRequiredErrMsg,
+				response:    errmsg.MetricNameRequired,
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -103,7 +104,7 @@ func TestMetricsHandler_CreatePlaneMetric(t *testing.T) {
 			url:  "/gauge/myGauge/123a",
 			want: want{
 				code:        http.StatusBadRequest,
-				response:    InvalidMetricValueErrMsg,
+				response:    errmsg.UnableToParseFloat,
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -112,7 +113,7 @@ func TestMetricsHandler_CreatePlaneMetric(t *testing.T) {
 			url:  "/counter/myCounter/123a",
 			want: want{
 				code:        http.StatusBadRequest,
-				response:    InvalidMetricValueErrMsg,
+				response:    errmsg.UnableToParseInt,
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
@@ -177,35 +178,35 @@ func TestMetricsHandler_CreateJSONMetric(t *testing.T) {
 			name:         "create a metric with wrong type from JSON",
 			expectedCode: http.StatusBadRequest,
 			reqBody:      `{"id": "gauge_1", "value": 1234567, "type": "gague"}`,
-			expectedBody: InvalidMetricTypeErrMsg,
+			expectedBody: errmsg.InvalidMetricType,
 			contentType:  "text/plain",
 		},
 		{
 			name:         "create a metric without name from JSON",
 			expectedCode: http.StatusNotFound,
 			reqBody:      `{"value": 1234567, "type": "gague"}`,
-			expectedBody: MetricNameRequiredErrMsg,
+			expectedBody: errmsg.MetricNameRequired,
 			contentType:  "text/plain",
 		},
 		{
 			name:         "create a metric with empty name from JSON",
 			expectedCode: http.StatusNotFound,
 			reqBody:      `{"value": 1234567, "type": "gague"}`,
-			expectedBody: MetricNameRequiredErrMsg,
+			expectedBody: errmsg.MetricNameRequired,
 			contentType:  "text/plain",
 		},
 		{
 			name:         "create gauge metric with incorrect value from JSON",
 			expectedCode: http.StatusBadRequest,
 			reqBody:      `{"id": "wrongVal", value": 12345d67, "type": "gague"}`,
-			expectedBody: UnableToDecodeJSONErrMsg,
+			expectedBody: errmsg.UnableToDecodeJSON,
 			contentType:  "text/plain",
 		},
 		{
-			name:         "create counter metric with incorrect value",
+			name:         "create counter metric with incorrect value from JSON",
 			expectedCode: http.StatusBadRequest,
 			reqBody:      `{"id": "wrongVal", delta": 12345d67, "type": "gague"}`,
-			expectedBody: UnableToDecodeJSONErrMsg,
+			expectedBody: errmsg.UnableToDecodeJSON,
 			contentType:  "text/plain",
 		},
 	}

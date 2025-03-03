@@ -1,8 +1,8 @@
 package config
 
 import (
-	"fmt"
 	"github.com/caarlos0/env/v6"
+	"github.com/rshafikov/alertme/internal/server/config"
 )
 
 type envConfig struct {
@@ -16,7 +16,7 @@ var Env envConfig
 func ParseEnv() error {
 	err := env.Parse(&Env)
 	if err != nil {
-		fmt.Println("Unable to parse ENV:", err)
+		config.Log.Errorln("Unable to parse ENV:", err.Error())
 		return err
 	}
 	return nil

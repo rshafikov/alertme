@@ -24,12 +24,13 @@ func (c *compressWriter) Header() http.Header {
 }
 
 func (c *compressWriter) Write(p []byte) (int, error) {
-	var contentMustBeCompressed bool
 	supportedContentTypes := []string{
 		"text/html",
 		"application/json",
 	}
 	reqContentType := c.w.Header().Get("Content-Type")
+
+	var contentMustBeCompressed bool
 	for _, supportedType := range supportedContentTypes {
 		if strings.Contains(reqContentType, supportedType) {
 			contentMustBeCompressed = true
@@ -92,7 +93,6 @@ func GZipper(h http.Handler) http.Handler {
 			cw := newCompressWriter(w)
 			ow = cw
 			defer cw.Close()
-
 		}
 
 		contentEncoding := r.Header.Get("Content-Encoding")

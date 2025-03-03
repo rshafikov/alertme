@@ -1,17 +1,19 @@
 package metrics
 
 import (
+	"github.com/rshafikov/alertme/internal/server/config"
+	"github.com/rshafikov/alertme/internal/server/errmsg"
+	"github.com/rshafikov/alertme/internal/server/models"
 	"html/template"
-	"log"
 	"net/http"
 )
 
 func (h *Router) ListMetrics(w http.ResponseWriter, r *http.Request) {
-	metrics, err := h.store.List()
-	if err != nil {
-		log.Println("ERR", "cannot list metrics in storage", err)
-		http.Error(w, "cannot list metrics in storage", http.StatusInternalServerError)
-		return
+	metrics := h.store.List()
+
+	var plainMetrics []models.PlainMetric
+	for _, metric := range metrics {
+		plainMetrics = append(plainMetrics, *metric.ConvertToPlain())
 	}
 
 	const tmpl = `
@@ -31,9 +33,9 @@ func (h *Router) ListMetrics(w http.ResponseWriter, r *http.Request) {
 	<body>
 		<h1>Metrics List</h1>
 		<table>
-			<tr><th>Name</th><th>Value</th></tr>
+			<tr><th>Type</th><th>Name</th><th>Value</th></tr>
 			{{range .}}
-				<tr><td>{{.Name}}</td><td>{{.Value}}</td></tr>
+				<tr><td>{{.Type}}</td><td>{{.Name}}</td><td>{{.Value}}</td></tr>
 			{{end}}
 		</table>
 	</body>
@@ -41,17 +43,17 @@ func (h *Router) ListMetrics(w http.ResponseWriter, r *http.Request) {
 
 	t, err := template.New("metrics").Parse(tmpl)
 	if err != nil {
-		log.Println("ERR", "cannot parse template", err)
-		http.Error(w, "cannot parse template", http.StatusInternalServerError)
+		config.Log.Debug(errmsg.UnableToParseTemplate)
+		http.Error(w, errmsg.UnableToParseTemplate, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	err = t.Execute(w, metrics)
+	err = t.Execute(w, plainMetrics)
 	if err != nil {
-		log.Println("ERR", "cannot execute template", err)
-		http.Error(w, "cannot execute template", http.StatusInternalServerError)
+		config.Log.Debug(errmsg.UnableToWriteTemplate)
+		http.Error(w, errmsg.UnableToWriteTemplate, http.StatusInternalServerError)
 	}
 }

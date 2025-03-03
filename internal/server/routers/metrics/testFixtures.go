@@ -60,10 +60,14 @@ func (c *HTTPClient) JSONRequest(t *testing.T, method, path, reqBody string) (*h
 	return resp, string(body)
 }
 
-func FillStorageWithTestData(s *storage.MemStorage, metrics []models.Metric) error {
-	for _, metric := range metrics {
-		if err := s.Add(&metric); err != nil {
-			return err
+func FillStorageWithTestData(s *storage.MemStorage, metrics []models.PlainMetric) error {
+	for _, plainMetric := range metrics {
+		metric, convertingErr := plainMetric.ConverToMetric()
+		if convertingErr != nil {
+			return convertingErr
+		}
+		if addErr := s.Add(metric); addErr != nil {
+			return addErr
 		}
 	}
 	return nil

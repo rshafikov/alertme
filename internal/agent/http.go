@@ -21,21 +21,12 @@ func NewClient(serverURL *url.URL) *Client {
 
 func (c *Client) SendStoredData(data *metrics.DataCollector) {
 	for _, m := range data.Metrics {
-
-		c.sendMetric(&models.MetricJSONReq{
-			ID:    m.Name,
-			MType: string(m.Type),
-			Value: &m.Value,
-		})
+		c.sendMetric(m)
 	}
-	c.sendMetric(&models.MetricJSONReq{
-		ID:    data.PollCount.Name,
-		MType: string(data.PollCount.Type),
-		Delta: &data.PollCount.Value,
-	})
+	c.sendMetric(data.PollCount)
 }
 
-func (c *Client) sendMetric(metric *models.MetricJSONReq) {
+func (c *Client) sendMetric(metric *models.Metric) {
 	jsonBody, err := json.Marshal(metric)
 	if err != nil {
 		fmt.Println("failed to serialize metric:", err)

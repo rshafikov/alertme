@@ -15,6 +15,7 @@ env:
   SERVER_BIN_NAME: server
   SERVER_BIN_PATH: "{{.SERVER_BIN_DIR}}/{{.SERVER_BIN_NAME}}"
   SERVER_PORT: 8888
+  SERVER_STORAGE_FILE_PATH: "metrics.backup.txt"
 
 tasks:
 
@@ -34,12 +35,12 @@ tasks:
   run-server:
     deps: [ build-server ]
     cmds:
-      - "{{.SERVER_BIN_PATH}}"
+      - "{{.SERVER_BIN_PATH}} {{.CLI_ARGS}}"
 
   run-agent:
     deps: [ build-agent ]
     cmds:
-      - "{{.AGENT_BIN_PATH}}"
+      - "{{.AGENT_BIN_PATH}} {{.CLI_ARGS}}"
 
   linter:
     cmd: go vet -vettool=`which statictest` ./...
@@ -62,6 +63,7 @@ tasks:
         -server-port="{{.SERVER_PORT}}"
         -agent-binary-path="{{.AGENT_BIN_PATH}}"
         -test.run="^TestIteration([1-{{.BRANCH_NUMBER}}]|[1-{{.BRANCH_NUMBER}}][A-Z])$"
+        -file-storage-path={{.SERVER_STORAGE_FILE_PATH}}
 
   test-iter-*:
     deps: [ linter, build ]
@@ -77,3 +79,4 @@ tasks:
         -server-port="{{.SERVER_PORT}}"
         -agent-binary-path="{{.AGENT_BIN_PATH}}"
         -test.run="^TestIteration{{.ITER}}"
+        -file-storage-path={{.SERVER_STORAGE_FILE_PATH}}

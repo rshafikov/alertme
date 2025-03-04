@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/rshafikov/alertme/internal/server/config"
 	"github.com/rshafikov/alertme/internal/server/routers/metrics"
@@ -10,19 +9,35 @@ import (
 )
 
 func main() {
-	config.InitServerFlags()
+	config.InitServerConfiguration()
 	if err := runServer(); err != nil {
 		panic(err)
 	}
 }
 
 func runServer() error {
-	s := storage.NewMemStorage()
-	mR := metrics.NewMetricsRouter(s)
+	fileSaver := storage.NewFileSaver(config.FileStoragePath)
+	memStorage := storage.NewMemStorage()
+
+	if config.Restore {
+		loadErr := fileSaver.LoadStorage(memStorage)
+		if loadErr != nil {
+			config.Log.Errorf("Failed to load metrics to storage: %v", loadErr)
+		} else {
+			config.Log.Info("Metrics successfully loaded to storage")
+		}
+	}
+
+	err := fileSaver.SaveStorageWithInterval(config.StoreInterval, memStorage)
+	if err != nil {
+		return err
+	}
+
+	mR := metrics.NewMetricsRouter(memStorage)
 
 	r := chi.NewRouter()
 	r.Mount("/", mR.Routes())
 
-	fmt.Println("Listening on:", config.Address.String())
+	config.Log.Infoln("Listening on", config.Address.String())
 	return http.ListenAndServe(config.Address.String(), r)
 }

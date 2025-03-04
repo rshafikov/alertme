@@ -1,42 +1,73 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"github.com/rshafikov/alertme/internal/agent/metrics"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"net/http"
 	"net/url"
-	"path"
-	"strconv"
 )
 
 type Client struct {
-	URL string
+	URL *url.URL
 }
 
-func NewClient(url string) *Client {
-	return &Client{URL: url}
+func NewClient(serverURL *url.URL) *Client {
+	return &Client{URL: serverURL}
 }
 
 func (c *Client) SendStoredData(data *metrics.DataCollector) {
 	for _, m := range data.Metrics {
-		c.sendMetric(m.Type, m.Name, strconv.FormatFloat(m.Value, 'f', -1, 64))
+		c.sendMetric(m)
 	}
-	c.sendMetric(data.PollCount.Type, data.PollCount.Name, strconv.FormatInt(data.PollCount.Value, 10))
+	c.sendMetric(data.PollCount)
 }
 
-func (c *Client) sendMetric(metricType models.MetricType, metricName, metricValue string) {
-	baseURL, err := url.Parse(c.URL)
+func (c *Client) sendMetric(metric *models.Metric) {
+	jsonBody, err := json.Marshal(metric)
 	if err != nil {
-		fmt.Println("invalid base URL:", err)
-		return
+		fmt.Println("failed to serialize metric:", err)
 	}
-	baseURL.Path = path.Join(baseURL.Path, "update", string(metricType), metricName, metricValue)
 
-	resp, err := http.Post(baseURL.String(), "text/plain", nil)
+	gzipData, err := c.compressMetric(jsonBody)
 	if err != nil {
-		fmt.Println("failed to send metric:", err)
+		fmt.Println("failed to compress metric:", err)
 		return
 	}
+
+	req, err := http.NewRequest(http.MethodPost, c.URL.String()+"/update/", gzipData)
+	if err != nil {
+		fmt.Println("failed to create request:", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println("failed to send request:", err)
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println("failed to send metric:", resp.Status)
+		return
+	}
+
 	defer resp.Body.Close()
+}
+
+func (c *Client) compressMetric(data []byte) (*bytes.Buffer, error) {
+	buf := bytes.NewBuffer(nil)
+	zb := gzip.NewWriter(buf)
+	_, err := zb.Write(data)
+	if err != nil {
+		return nil, err
+	}
+	err = zb.Close()
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }

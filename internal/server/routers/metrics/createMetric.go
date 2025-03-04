@@ -1,62 +1,64 @@
 package metrics
 
 import (
-	"errors"
-	"github.com/go-chi/chi/v5"
-	"github.com/rshafikov/alertme/internal/server/models"
-	"github.com/rshafikov/alertme/internal/server/storage"
-	"log"
+	"encoding/json"
+	"github.com/rshafikov/alertme/internal/server/config"
+	"github.com/rshafikov/alertme/internal/server/errmsg"
 	"net/http"
-	"strconv"
 )
 
-func (h *Router) CreateMetric(w http.ResponseWriter, r *http.Request) {
-	metricType := models.MetricType(chi.URLParam(r, "metricType"))
-	metricName := chi.URLParam(r, "metricName")
-	metricValue := chi.URLParam(r, "metricValue")
+func (h *Router) CreateMetricFromURL(w http.ResponseWriter, r *http.Request) {
+	newMetric, responseCode, parseErr := h.ParseMetricFromURL(r)
 
-	if metricName == "" {
-		log.Println("metric name is required")
-		http.Error(w, "metric name is required", http.StatusNotFound)
+	if parseErr != nil {
+		config.Log.Debug(parseErr.Error())
+		http.Error(w, parseErr.Error(), responseCode)
 		return
 	}
 
-	if !(metricType == models.CounterType || metricType == models.GaugeType) {
-		log.Println("invalid metric type")
-		http.Error(w, "invalid metric type", http.StatusBadRequest)
+	if storageErr := h.store.Add(newMetric); storageErr != nil {
+		config.Log.Debug(storageErr.Error())
+		http.Error(w, storageErr.Error(), http.StatusInternalServerError)
 		return
-	}
-
-	if _, err := strconv.ParseFloat(metricValue, 64); err != nil {
-		log.Println("invalid metric value")
-		http.Error(w, "invalid metric value", http.StatusBadRequest)
-		return
-	}
-
-	newMetric := models.Metric{Type: metricType, Name: metricName, Value: metricValue}
-
-	if err := h.store.Add(&newMetric); err != nil {
-		var (
-			metricTypeErr  *storage.UnsupportedMetricTypeError
-			metricValueErr *storage.IncorrectMetricValueError
-		)
-		if errors.As(err, &metricTypeErr) {
-			log.Println("ERR", metricTypeErr.Error())
-			http.Error(w, "", http.StatusBadRequest)
-			return
-
-		} else if errors.As(err, &metricValueErr) {
-			log.Println("ERR", metricValueErr.Error())
-			http.Error(w, "", http.StatusBadRequest)
-			return
-
-		} else {
-			log.Println("ERR: cannot add metric to storage", err)
-			http.Error(w, "cannot add metric to storage", http.StatusInternalServerError)
-			return
-		}
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Router) CreateMetricFromJSON(w http.ResponseWriter, r *http.Request) {
+	newMetric, responseCode, parseErr := h.ParseMetricFromJSON(r)
+	if parseErr != nil {
+		config.Log.Debug(parseErr.Error())
+		http.Error(w, parseErr.Error(), responseCode)
+		return
+	}
+
+	if saveErr := h.store.Add(newMetric); saveErr != nil {
+		config.Log.Debug(saveErr.Error())
+		http.Error(w, saveErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	createdMetric, getErr := h.store.Get(newMetric.Type, newMetric.Name)
+	if getErr != nil {
+		config.Log.Debug(getErr.Error())
+		http.Error(w, getErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	jsonBytes, encodeErr := json.Marshal(createdMetric)
+	if encodeErr != nil {
+		config.Log.Debug(errmsg.UnableToEncodeJSON)
+		http.Error(w, encodeErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, writeErr := w.Write(jsonBytes)
+	if writeErr != nil {
+		config.Log.Debug(errmsg.UnableToWriteResponse)
+		return
+	}
 }

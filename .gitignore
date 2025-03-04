@@ -23,3 +23,6 @@ vendor/
 # IDEs directories
 .idea
 .vscode
+
+# Temp files are created by the Project entities:
+metrics*.txt

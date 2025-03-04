@@ -11,23 +11,23 @@ func TestUpdateDataCollector(t *testing.T) {
 	dc := NewEmptyDataCollector()
 
 	t.Run("check PollCounter increments", func(t *testing.T) {
-		initialValue := dc.PollCount.Value
+		initialValue := int64(0)
 		dc.UpdateMetrics()
-		assert.Greater(t, dc.PollCount.Value, initialValue)
+		assert.Greater(t, *dc.PollCount.Delta, initialValue)
 	})
 
 	t.Run("check RandomValue changes", func(t *testing.T) {
-		getMetricByName := func(name string, arr *[]models.GaugeMetric) models.GaugeMetric {
+		getMetricByName := func(name string, arr []*models.Metric) *models.Metric {
 			for _, metric := range dc.Metrics {
 				if metric.Name == name {
 					return metric
 				}
 			}
-			return models.GaugeMetric{}
+			return nil
 		}
-		randValueBefore := getMetricByName("RandomValue", &dc.Metrics).Value
+		randValueBefore := getMetricByName("RandomValue", dc.Metrics).Value
 		dc.UpdateMetrics()
-		randValueAfter := getMetricByName("RandomValue", &dc.Metrics).Value
+		randValueAfter := getMetricByName("RandomValue", dc.Metrics).Value
 
 		assert.NotEqualValues(t, randValueBefore, randValueAfter)
 	})

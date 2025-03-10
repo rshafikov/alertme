@@ -102,7 +102,7 @@ curl -X POST http://localhost:8080/update/gauge/cpu_usage/45.3
 
 ```shell
 metricstest \
--test.run="^TestIteration([1-5]|[1-5][A-Z])$" \
+-test.run="^TestIteration([1-6]|[1-6][A-Z])$" \
 -agent-binary-path=cmd/agent/agent \
 -binary-path=cmd/server/server \
 -source-path=. \

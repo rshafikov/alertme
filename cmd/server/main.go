@@ -1,28 +1,49 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/rshafikov/alertme/internal/server/config"
+	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/routers/metrics"
 	"github.com/rshafikov/alertme/internal/server/storage"
+	"go.uber.org/zap"
+	"log"
 	"net/http"
 )
 
 func main() {
-	config.InitServerFlags()
+	config.InitServerConfiguration()
+	if err := logger.Initialize(config.LogLevel); err != nil {
+		log.Fatal(err)
+	}
 	if err := runServer(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
 func runServer() error {
-	s := storage.NewMemStorage()
-	mR := metrics.NewMetricsRouter(s)
+	fileSaver := storage.NewFileSaver(config.FileStoragePath)
+	memStorage := storage.NewMemStorage()
+
+	if config.Restore {
+		loadErr := fileSaver.LoadStorage(memStorage)
+		if loadErr != nil {
+			logger.Log.Error("Failed to load metrics to storage:", zap.Error(loadErr))
+		} else {
+			logger.Log.Info("Metrics successfully loaded to storage")
+		}
+	}
+
+	err := fileSaver.SaveStorageWithInterval(config.StoreInterval, memStorage)
+	if err != nil {
+		return err
+	}
+
+	mR := metrics.NewMetricsRouter(memStorage)
 
 	r := chi.NewRouter()
 	r.Mount("/", mR.Routes())
 
-	fmt.Println("Listening on:", config.Address.String())
+	logger.Log.Info("Listening on", zap.String("address", config.Address.String()))
 	return http.ListenAndServe(config.Address.String(), r)
 }

@@ -27,10 +27,7 @@ func runServer() error {
 	fileSaver := storage.NewFileSaver(memStorage, config.FileStoragePath)
 
 	if config.Restore {
-		err := fileSaver.LoadStorage()
-		if err != nil {
-			return err
-		}
+		_ = fileSaver.LoadStorage()
 	}
 
 	if config.StoreInterval > 0 {
@@ -40,10 +37,7 @@ func runServer() error {
 		}
 	}
 
-	dbs, err := storage.NewDBStorage(config.DatabaseURL)
-	if err != nil {
-		return err
-	}
+	dbs, _ := storage.NewDBStorage(config.DatabaseURL)
 
 	mR := metrics.NewMetricsRouter(memStorage, dbs)
 

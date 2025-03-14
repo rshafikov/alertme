@@ -11,9 +11,6 @@ env:
   SERVER_BIN_DIR: cmd/server
   SERVER_BIN_NAME: server
   SERVER_BIN_PATH: "{{.SERVER_BIN_DIR}}/{{.SERVER_BIN_NAME}}"
-  SERVER_PORT: 8888
-  SERVER_STORAGE_FILE_PATH: "metrics.backup.txt"
-  DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
 
 tasks:
 
@@ -47,31 +44,194 @@ tasks:
     cmds:
       - go test {{.CACHED}}  ./...
 
-  tests:
+  iter-1:
     deps: [ linter, unit-tests, build ]
     cmds:
-      - >-
-        metricstest
-        -test.v
-        -source-path=.
-        -binary-path="{{.SERVER_BIN_PATH}}"
-        -server-port="{{.SERVER_PORT}}"
-        -agent-binary-path="{{.AGENT_BIN_PATH}}"
-        -test.run="^TestIteration([1-9]|[0-9][A-Z])$"
-        -file-storage-path={{.SERVER_STORAGE_FILE_PATH}}
+      - |
+        metricstest -test.v -test.run=^TestIteration1$ \
+          -binary-path={{.SERVER_BIN_PATH}}
 
-  test-iter-*:
-    deps: [ linter, unit-tests, build ]
-    vars:
-      ITER: '{{index .MATCH 0}}'
+  iter-2:
+    deps: [ iter-1, ]
     cmds:
-      - >-
-        metricstest
-        -test.v
-        -source-path=.
-        -binary-path="{{.SERVER_BIN_PATH}}"
-        -server-port="{{.SERVER_PORT}}"
-        -agent-binary-path="{{.AGENT_BIN_PATH}}"
-        -test.run="^TestIteration{{.ITER}}"
-        -file-storage-path={{.SERVER_STORAGE_FILE_PATH}}
-        -database-dsn={{.DATABASE_DSN}}
+      - |
+        metricstest -test.v -test.run=^TestIteration2[AB]*$ \
+          -source-path=. \
+          -agent-binary-path={{.AGENT_BIN_PATH}}
+
+  iter-3:
+    deps: [ iter-2, ]
+    cmds:
+      - |
+        metricstest -test.v -test.run=^TestIteration3[AB]*$ \
+          -source-path=. \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}}
+
+  iter-4:
+    deps: [ iter-3, ]
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        metricstest -test.v -test.run=^TestIteration4$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -server-port=$SERVER_PORT \
+          -source-path=.
+      
+
+
+
+  iter-5:
+    deps: [ iter-4, ]
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        SERVER_PORT=$(random-practicum unused-port) metricstest -test.v -test.run=^TestIteration5$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -server-port=$SERVER_PORT \
+          -source-path=.
+
+  iter-6:
+    deps: [ iter-5, ]
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        metricstest -test.v -test.run=^TestIteration6$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -server-port=SERVER_PORT \
+          -source-path=.
+
+  iter-7:
+    deps: [ iter-6, ]
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        metricstest -test.v -test.run=^TestIteration7$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -server-port=$SERVER_PORT \
+          -source-path=.
+
+  iter-8:
+    deps: [ iter-7, ]
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        metricstest -test.v -test.run=^TestIteration8$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -server-port=$SERVER_PORT \
+          -source-path=.
+
+  iter-9:
+    deps: [ iter-8, ]
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        metricstest -test.v -test.run=^TestIteration9$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -file-storage-path=$TEMP_FILE \
+          -server-port=$SERVER_PORT \
+          -source-path=.
+
+  iter-10:
+    deps: [ iter-9, ]
+    vars:
+      DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        metricstest -test.v -test.run=^TestIteration10[AB]$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -database-dsn={{.DATABASE_DSN}} \
+          -server-port=$SERVER_PORT \
+          -source-path=.
+
+  iter-11:
+    deps: [ iter-10, ]
+    vars:
+      DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        metricstest -test.v -test.run=^TestIteration11$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -database-dsn={{.DATABASE_DSN}} \
+          -server-port=$SERVER_PORT \
+          -source-path=.
+
+  iter-12:
+    deps: [ iter-11, ]
+    vars:
+      DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        metricstest -test.v -test.run=^TestIteration12$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -database-dsn={{.DATABASE_DSN}} \
+          -server-port=$SERVER_PORT \
+          -source-path=.
+
+  iter-13:
+    deps: [ iter-12, ]
+    vars:
+      DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        metricstest -test.v -test.run=^TestIteration13$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -database-dsn={{.DATABASE_DSN}} \
+          -server-port=$SERVER_PORT \
+          -source-path=.
+
+  iter-14:
+    deps: [ iter-13, ]
+    vars:
+      DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
+    cmds:
+      - |
+        SERVER_PORT=$(random-practicum unused-port)
+        ADDRESS="localhost:${SERVER_PORT}"
+        TEMP_FILE=$(random-practicum tempfile)
+        metricstest -test.v -test.run=^TestIteration14$ \
+          -agent-binary-path={{.AGENT_BIN_PATH}} \
+          -binary-path={{.SERVER_BIN_PATH}} \
+          -database-dsn={{.DATABASE_DSN}} \
+          -key=$TEMP_FILE \
+          -server-port=$SERVER_PORT \
+          -source-path=.
+
+  iter-14-race:
+    deps: [ linter, build ]
+    cmds:
+      - go test -v -race ./...

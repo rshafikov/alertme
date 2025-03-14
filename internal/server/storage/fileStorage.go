@@ -27,6 +27,7 @@ type FileSaver struct {
 func (l *FileSaver) LoadMetrics() ([]*models.Metric, error) {
 	file, err := os.Open(l.FileName)
 	if err != nil {
+		logger.Log.Error(errmsg.UnableToOpenFile, zap.Error(err))
 		return nil, err
 	}
 	defer file.Close()
@@ -51,6 +52,7 @@ func (l *FileSaver) LoadMetrics() ([]*models.Metric, error) {
 func (l *FileSaver) SaveMetrics(metrics []*models.Metric) error {
 	file, err := os.OpenFile(l.FileName, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
+		logger.Log.Error(errmsg.UnableToOpenFile, zap.Error(err))
 		return err
 	}
 	defer file.Close()
@@ -73,7 +75,7 @@ func (l *FileSaver) LoadStorage() error {
 	for _, oldMetric := range oldMetrics {
 		err := l.Storage.Add(oldMetric)
 		if err != nil {
-			logger.Log.Error("unable to add old metric to storage", zap.Error(err))
+			logger.Log.Error(errmsg.UnableToRestoreMetric, zap.Error(err))
 			return err
 		}
 		logger.Log.Info("Storage was restored")

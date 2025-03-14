@@ -2,7 +2,6 @@ package storage
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,13 +48,11 @@ func TestFileLoader_LoadAndSaveToStorage(t *testing.T) {
 	assert.NoError(t, err)
 	expectedMetrics := []*models.Metric{counter, gauge}
 
-	t.Run("Load file not found", func(t *testing.T) {
-		expectedErrMsg := fmt.Sprintf("open %s: no such file or directory", TestFileName)
+	t.Run("Load from not existed file", func(t *testing.T) {
 		storage := NewMemStorage()
 		fileLoader := NewFileSaver(storage, TestFileName)
 		loadErr := fileLoader.LoadStorage()
-		assert.Error(t, loadErr)
-		assert.EqualError(t, loadErr, expectedErrMsg)
+		assert.NoError(t, loadErr)
 	})
 
 	t.Run("Save metrics from storage to a file", func(t *testing.T) {

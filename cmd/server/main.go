@@ -40,10 +40,7 @@ func runServer() error {
 		}
 	}
 
-	dbs, err := storage.NewDBStorage(config.DatabaseURL)
-	if err != nil {
-		return err
-	}
+	dbs, _ := storage.NewDBStorage(config.DatabaseURL)
 
 	mR := metrics.NewMetricsRouter(memStorage, dbs)
 

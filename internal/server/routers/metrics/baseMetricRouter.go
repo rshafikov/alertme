@@ -9,10 +9,14 @@ import (
 
 type Router struct {
 	store storage.BaseMetricStorage
+	db    *storage.DBStorage
 }
 
-func NewMetricsRouter(store storage.BaseMetricStorage) *Router {
-	return &Router{store: store}
+func NewMetricsRouter(store storage.BaseMetricStorage, db *storage.DBStorage) *Router {
+	return &Router{
+		store: store,
+		db:    db,
+	}
 }
 
 func (h *Router) Routes() chi.Router {
@@ -22,6 +26,7 @@ func (h *Router) Routes() chi.Router {
 	r.Use(middlewares.GZipper)
 
 	r.Get("/", h.ListMetrics)
+	r.Get("/ping", h.PingDB)
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", h.CreateMetricFromJSON)
 		r.Post("/{metricType}/{metricName}/{metricValue}", h.CreateMetricFromURL)

@@ -15,7 +15,7 @@ const indexPath = "/"
 
 func TestMetricsHandler_ListMetrics(t *testing.T) {
 	memStorage := storage.NewMemStorage()
-	router := NewMetricsRouter(memStorage)
+	router := NewMetricsRouter(memStorage, nil)
 	ts := httptest.NewServer(router.Routes())
 	defer ts.Close()
 

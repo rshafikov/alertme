@@ -2,7 +2,6 @@ package storage
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +22,7 @@ func TestFileLoader_SaveAndLoad(t *testing.T) {
 	expectedMetrics := []*models.Metric{counter, gauge}
 
 	t.Run("Save and load metrics from a file", func(t *testing.T) {
-		fileLoader := NewFileSaver(TestFileName)
+		fileLoader := NewFileSaver(nil, TestFileName)
 		saveErr := fileLoader.SaveMetrics([]*models.Metric{counter, gauge})
 		assert.NoError(t, saveErr)
 
@@ -35,7 +34,7 @@ func TestFileLoader_SaveAndLoad(t *testing.T) {
 	t.Run("Check if file exists", func(t *testing.T) {
 		defer os.Remove(TestFileName)
 
-		fileLoader := NewFileSaver(TestFileName)
+		fileLoader := NewFileSaver(nil, TestFileName)
 		_, checkErr := os.Stat(fileLoader.FileName)
 		assert.NoError(t, checkErr)
 		defer os.Remove(fileLoader.FileName)
@@ -49,26 +48,24 @@ func TestFileLoader_LoadAndSaveToStorage(t *testing.T) {
 	assert.NoError(t, err)
 	expectedMetrics := []*models.Metric{counter, gauge}
 
-	t.Run("Load file not found", func(t *testing.T) {
-		expectedErrMsg := fmt.Sprintf("open %s: no such file or directory", TestFileName)
+	t.Run("Load from not existed file", func(t *testing.T) {
 		storage := NewMemStorage()
-		fileLoader := NewFileSaver(TestFileName)
-		loadErr := fileLoader.LoadStorage(storage)
-		assert.Error(t, loadErr)
-		assert.EqualError(t, loadErr, expectedErrMsg)
+		fileLoader := NewFileSaver(storage, TestFileName)
+		loadErr := fileLoader.LoadStorage()
+		assert.NoError(t, loadErr)
 	})
 
 	t.Run("Save metrics from storage to a file", func(t *testing.T) {
 		storage := NewMemStorage()
 		for _, metric := range expectedMetrics {
-			addErr := storage.Add(metric)
-			require.NoError(t, addErr)
+			err = storage.Add(metric)
+			require.NoError(t, err)
 		}
 
-		fileLoader := NewFileSaver(TestFileName)
-		saveErr := fileLoader.SaveStorage(storage)
+		fileLoader := NewFileSaver(storage, TestFileName)
+		err = fileLoader.SaveStorage()
 		defer os.Remove(TestFileName)
-		require.NoError(t, saveErr)
+		require.NoError(t, err)
 
 		time.Sleep(100 * time.Millisecond)
 		_, checkErr := os.Stat(TestFileName)
@@ -97,9 +94,10 @@ func TestFileLoader_LoadAndSaveToStorage(t *testing.T) {
 			assert.NoError(t, encodeErr)
 		}
 
-		fileLoader := NewFileSaver(TestFileName)
 		storage := NewMemStorage()
-		loadMetricsErr := fileLoader.LoadStorage(storage)
+		fileLoader := NewFileSaver(storage, TestFileName)
+
+		loadMetricsErr := fileLoader.LoadStorage()
 		assert.NoError(t, loadMetricsErr)
 
 		for _, metric := range metricsList {

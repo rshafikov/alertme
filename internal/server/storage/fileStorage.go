@@ -86,6 +86,7 @@ func (l *FileSaver) LoadStorage() error {
 func (l *FileSaver) SaveStorage() error {
 	logger.Log.Debug("trying to save metrics to", zap.String("filename", l.FileName))
 	err := l.SaveMetrics(l.Storage.List())
+
 	if err != nil {
 		return errors.New(errmsg.UnableToSaveMetricInStorage)
 	}

@@ -52,7 +52,7 @@ type Metric struct {
 func (m *Metric) String() string {
 	switch m.Type {
 	case GaugeType:
-		return strings.TrimRight(fmt.Sprintf("%.10f", *m.Value), "0")
+		return strings.TrimRight(fmt.Sprintf("%.*f", 7, *m.Value), "0")
 	case CounterType:
 		return fmt.Sprintf("%v", *m.Delta)
 	default:

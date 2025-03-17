@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rshafikov/alertme/internal/server/errmsg"
 	"github.com/rshafikov/alertme/internal/server/logger"
+	"github.com/rshafikov/alertme/internal/server/migrations"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"go.uber.org/zap"
 )
@@ -21,12 +22,15 @@ func NewDBStorage(dbURL string) (*DBStorage, error) {
 	db.URL = dbURL
 
 	if dbURL != "" {
-		logger.Log.Info("using database:", zap.String("dbURL", dbURL))
 		err := db.Connect()
 		if err != nil {
-			logger.Log.Error("failed to connect to database:", zap.Error(err))
 			return nil, err
 		}
+		err = db.MakeMigrations()
+		if err != nil {
+			return nil, err
+		}
+		logger.Log.Info("using database:", zap.String("dbURL", dbURL))
 		return &db, nil
 	}
 
@@ -37,28 +41,128 @@ func (db *DBStorage) Connect() error {
 	_, err := pgx.Connect(context.Background(), db.URL)
 
 	if err != nil {
-		logger.Log.Error("Unable to connect to database:", zap.Error(err))
+		logger.Log.Error(errmsg.UnableToConnectToDatabase, zap.Error(err))
 		return err
 	}
 
 	db.Pool, err = pgxpool.New(context.Background(), db.URL)
 	if err != nil {
-		logger.Log.Error("Unable to connect DB pool:", zap.Error(err))
+		logger.Log.Error(errmsg.UnableToConnectDBPool, zap.Error(err))
 		return err
 	}
 
-	logger.Log.Debug("Connected to database")
+	logger.Log.Debug("connected to database", zap.String("dbURL", db.URL))
 	return nil
 }
 
 func (db *DBStorage) Add(m *models.Metric) error {
+	if m.Type == models.CounterType {
+		oldMetric, _ := db.Get(m.Type, m.Name)
+		if oldMetric != nil {
+			newDelta := *m.Delta + *oldMetric.Delta
+			m.Delta = &newDelta
+		}
+	}
+
+	query := `
+		INSERT INTO metrics (name, value, delta, type)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (name) DO UPDATE
+		SET value = EXCLUDED.value, delta = EXCLUDED.delta, type = EXCLUDED.type;
+	`
+
+	_, err := db.Pool.Exec(context.Background(), query, m.Name, m.Value, m.Delta, m.Type)
+	if err != nil {
+		logger.Log.Error("failed to add metric", zap.Error(err))
+		return err
+	}
+
+	logger.Log.Debug("metric added successfully", zap.String("name", m.Name))
+	return nil
+}
+func (db *DBStorage) Get(metricType models.MetricType, metricName string) (*models.Metric, error) {
+	query := `
+		SELECT name, value, delta, type
+		FROM metrics
+		WHERE type = $1 AND name = $2;
+	`
+
+	var metric models.Metric
+	err := db.Pool.QueryRow(context.Background(), query, metricType, metricName).Scan(
+		&metric.Name, &metric.Value, &metric.Delta, &metric.Type,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			logger.Log.Debug("metric not found", zap.String("name", metricName))
+			return nil, nil
+		}
+		logger.Log.Error("failed to get metric", zap.Error(err))
+		return nil, err
+	}
+
+	logger.Log.Debug("metric retrieved successfully", zap.String("name", metricName))
+	return &metric, nil
+}
+
+func (db *DBStorage) List() []*models.Metric {
+	query := `
+		SELECT name, value, delta, type
+		FROM metrics;
+	`
+
+	rows, err := db.Pool.Query(context.Background(), query)
+	if err != nil {
+		logger.Log.Error("failed to list metrics", zap.Error(err))
+		return nil
+	}
+	defer rows.Close()
+
+	var metrics []*models.Metric
+	for rows.Next() {
+		var metric models.Metric
+		err := rows.Scan(&metric.Name, &metric.Value, &metric.Delta, &metric.Type)
+		if err != nil {
+			logger.Log.Error("failed to scan metric", zap.Error(err))
+			continue
+		}
+		metrics = append(metrics, &metric)
+	}
+
+	if rows.Err() != nil {
+		logger.Log.Error("error during rows iteration", zap.Error(rows.Err()))
+	}
+
+	logger.Log.Debug("metrics listed successfully", zap.Int("count", len(metrics)))
+	return metrics
+}
+
+func (db *DBStorage) Clear() {
+	query := `DELETE FROM metrics;`
+
+	_, err := db.Pool.Exec(context.Background(), query)
+	if err != nil {
+		logger.Log.Error("failed to clear metrics", zap.Error(err))
+		return
+	}
+
+	logger.Log.Debug("metrics cleared successfully")
+}
+
+func (db *DBStorage) MakeMigrations() error {
+	_, err := db.Pool.Exec(context.Background(), migrations.CreateMetricsType)
+	if err != nil {
+		logger.Log.Error(errmsg.UnableToCreateEnum, zap.Error(err))
+		return err
+	}
+
+	_, err = db.Pool.Exec(context.Background(), migrations.CreateMetricsTable)
+	if err != nil {
+		logger.Log.Error(errmsg.UnableToMakeMigrations, zap.Error(err))
+		return err
+	}
 	return nil
 }
 
-func (db *DBStorage) Get(metricType models.MetricType, metricName string) (*models.Metric, error) {
-	return nil, nil
+func (db *DBStorage) Ping() error {
+	return db.Pool.Ping(context.Background())
 }
-
-func (db *DBStorage) List() []*models.Metric { return nil }
-
-func (db *DBStorage) Clear() {}

@@ -17,7 +17,7 @@ const getResourceRESTMethod = http.MethodGet
 
 func TestMetricsHandler_GetMetric(t *testing.T) {
 	memStorage := storage.NewMemStorage()
-	router := NewMetricsRouter(memStorage, nil)
+	router := NewMetricsRouter(memStorage)
 	ts := httptest.NewServer(router.Routes())
 	defer ts.Close()
 

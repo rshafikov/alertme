@@ -23,6 +23,7 @@ tasks:
       - go build -v -o "{{.AGENT_BIN_PATH}}" "{{.AGENT_BIN_DIR}}/main.go"
 
   build:
+    run: once
     deps: [ build-agent, build-server ]
 
   run-server:
@@ -36,9 +37,11 @@ tasks:
       - "{{.AGENT_BIN_PATH}} {{.CLI_ARGS}}"
 
   linter:
+    run: once
     cmd: go vet -vettool=`which statictest` ./...
 
   unit-tests:
+    run: once
     vars:
       CACHED: '{{.CACHED | default "-count 1" }}'
     cmds:
@@ -52,7 +55,7 @@ tasks:
           -binary-path={{.SERVER_BIN_PATH}}
 
   iter-2:
-    deps: [ iter-1, ]
+    deps: [ linter, unit-tests, build, iter-1, ]
     cmds:
       - |
         metricstest -test.v -test.run=^TestIteration2[AB]*$ \
@@ -60,7 +63,7 @@ tasks:
           -agent-binary-path={{.AGENT_BIN_PATH}}
 
   iter-3:
-    deps: [ iter-2, ]
+    deps: [ linter, unit-tests, build, iter-2, ]
     cmds:
       - |
         metricstest -test.v -test.run=^TestIteration3[AB]*$ \
@@ -69,7 +72,7 @@ tasks:
           -binary-path={{.SERVER_BIN_PATH}}
 
   iter-4:
-    deps: [ iter-3, ]
+    deps: [ linter, unit-tests, build, iter-3, ]
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)
@@ -80,12 +83,12 @@ tasks:
           -binary-path={{.SERVER_BIN_PATH}} \
           -server-port=$SERVER_PORT \
           -source-path=.
-      
-
-
+  
+  
+  
 
   iter-5:
-    deps: [ iter-4, ]
+    deps: [ linter, unit-tests, build, iter-4, ]
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)
@@ -98,7 +101,7 @@ tasks:
           -source-path=.
 
   iter-6:
-    deps: [ iter-5, ]
+    deps: [ linter, unit-tests, build, iter-5, ]
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)
@@ -111,7 +114,7 @@ tasks:
           -source-path=.
 
   iter-7:
-    deps: [ iter-6, ]
+    deps: [ linter, unit-tests, build, iter-6, ]
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)
@@ -124,7 +127,7 @@ tasks:
           -source-path=.
 
   iter-8:
-    deps: [ iter-7, ]
+    deps: [ linter, unit-tests, build, iter-7, ]
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)
@@ -137,7 +140,7 @@ tasks:
           -source-path=.
 
   iter-9:
-    deps: [ iter-8, ]
+    deps: [ linter, unit-tests, build, iter-8, ]
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)
@@ -151,7 +154,7 @@ tasks:
           -source-path=.
 
   iter-10:
-    deps: [ iter-9, ]
+    deps: [ linter, unit-tests, build, iter-9, ]
     vars:
       DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
     cmds:
@@ -167,7 +170,7 @@ tasks:
           -source-path=.
 
   iter-11:
-    deps: [ iter-10, ]
+    deps: [ linter, unit-tests, build, iter-10, ]
     vars:
       DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
     cmds:
@@ -183,7 +186,7 @@ tasks:
           -source-path=.
 
   iter-12:
-    deps: [ iter-11, ]
+    deps: [ linter, unit-tests, build, iter-11, ]
     vars:
       DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
     cmds:
@@ -199,7 +202,7 @@ tasks:
           -source-path=.
 
   iter-13:
-    deps: [ iter-12, ]
+    deps: [ linter, unit-tests, build, iter-12, ]
     vars:
       DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
     cmds:
@@ -215,7 +218,7 @@ tasks:
           -source-path=.
 
   iter-14:
-    deps: [ iter-13, ]
+    deps: [ linter, unit-tests, build, iter-13, ]
     vars:
       DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
     cmds:
@@ -232,6 +235,6 @@ tasks:
           -source-path=.
 
   iter-14-race:
-    deps: [ linter, build ]
+    deps: [ linter, unit-tests, build, ]
     cmds:
       - go test -v -race ./...

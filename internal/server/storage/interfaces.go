@@ -15,3 +15,9 @@ type BaseMetricSaver interface {
 	SaveMetrics(metrics []*models.Metric) error
 	LoadMetrics() ([]*models.Metric, error)
 }
+
+type BaseDatabase interface {
+	MakeMigrations() error
+	Connect() error
+	Ping() error
+}

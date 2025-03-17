@@ -9,13 +9,11 @@ import (
 
 type Router struct {
 	store storage.BaseMetricStorage
-	db    *storage.DBStorage
 }
 
-func NewMetricsRouter(store storage.BaseMetricStorage, db *storage.DBStorage) *Router {
+func NewMetricsRouter(store storage.BaseMetricStorage) *Router {
 	return &Router{
 		store: store,
-		db:    db,
 	}
 }
 

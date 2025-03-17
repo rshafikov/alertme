@@ -23,8 +23,8 @@ func main() {
 }
 
 func runServer() error {
-	memStorage := storage.NewMemStorage()
-	fileSaver := storage.NewFileSaver(memStorage, config.FileStoragePath)
+	metricsStorage := storage.NewMemStorage()
+	fileSaver := storage.NewFileSaver(metricsStorage, config.FileStoragePath)
 
 	if config.Restore {
 		_ = fileSaver.LoadStorage()
@@ -37,9 +37,12 @@ func runServer() error {
 		}
 	}
 
-	dbs, _ := storage.NewDBStorage(config.DatabaseURL)
+	mR := metrics.NewMetricsRouter(metricsStorage)
 
-	mR := metrics.NewMetricsRouter(memStorage, dbs)
+	databaseStorage, _ := storage.NewDBStorage(config.DatabaseURL)
+	if databaseStorage != nil {
+		mR = metrics.NewMetricsRouter(databaseStorage)
+	}
 
 	r := chi.NewRouter()
 	r.Mount("/", mR.Routes())

@@ -19,7 +19,7 @@ const createResourceRESTMethod = http.MethodPost
 
 func TestMetricsHandler_CreatePlaneMetric(t *testing.T) {
 	memStorage := storage.NewMemStorage()
-	router := NewMetricsRouter(memStorage, nil)
+	router := NewMetricsRouter(memStorage)
 	ts := httptest.NewServer(router.Routes())
 	defer ts.Close()
 
@@ -132,7 +132,7 @@ func TestMetricsHandler_CreatePlaneMetric(t *testing.T) {
 
 func TestMetricsHandler_CreateJSONMetric(t *testing.T) {
 	memStorage := storage.NewMemStorage()
-	router := NewMetricsRouter(memStorage, nil)
+	router := NewMetricsRouter(memStorage)
 	ts := httptest.NewServer(router.Routes())
 	defer ts.Close()
 
@@ -228,7 +228,7 @@ func TestMetricsHandler_CreateJSONMetric(t *testing.T) {
 
 func TestMetricsRouter_GZIPCompression(t *testing.T) {
 	memStorage := storage.NewMemStorage()
-	router := NewMetricsRouter(memStorage, nil)
+	router := NewMetricsRouter(memStorage)
 	ts := httptest.NewServer(router.Routes())
 	defer ts.Close()
 

@@ -25,6 +25,7 @@ func (h *Router) Routes() chi.Router {
 
 	r.Get("/", h.ListMetrics)
 	r.Get("/ping", h.PingDB)
+	r.Post("/updates/", h.CreateMetricsFromJSON)
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", h.CreateMetricFromJSON)
 		r.Post("/{metricType}/{metricName}/{metricValue}", h.CreateMetricFromURL)

@@ -25,32 +25,7 @@ func (s *MemStorage) Add(ctx context.Context, m *models.Metric) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	existingMetric, exists := s.metrics[m.MapName()]
-
-	switch m.Type {
-	case models.GaugeType:
-		if m.Value == nil {
-			return errors.New(errmsg.MetricGaugeValueCannotBeNil)
-		}
-		s.metrics[m.MapName()] = m
-	case models.CounterType:
-		if m.Delta == nil {
-			return errors.New(errmsg.MetricCounterDeltaCannotBeNil)
-		}
-		newDelta := *m.Delta
-		if exists {
-			newDelta += *existingMetric.Delta
-		}
-		s.metrics[m.MapName()] = &models.Metric{
-			Name:  m.Name,
-			Type:  m.Type,
-			Delta: &newDelta,
-		}
-	default:
-		return errors.New(errmsg.InvalidMetricType)
-	}
-
-	return nil
+	return s.addMetric(m)
 }
 
 func (s *MemStorage) Get(ctx context.Context, metricType models.MetricType, metricName string) (*models.Metric, error) {
@@ -83,4 +58,45 @@ func (s *MemStorage) Clear(ctx context.Context) {
 	defer s.mu.Unlock()
 
 	s.metrics = make(map[string]*models.Metric)
+}
+
+func (s *MemStorage) AddBatch(ctx context.Context, metrics []*models.Metric) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, metric := range metrics {
+		if err := s.addMetric(metric); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *MemStorage) addMetric(m *models.Metric) error {
+	existingMetric, exists := s.metrics[m.MapName()]
+
+	switch m.Type {
+	case models.GaugeType:
+		if m.Value == nil {
+			return errors.New("metric gauge value cannot be nil")
+		}
+		s.metrics[m.MapName()] = m
+	case models.CounterType:
+		if m.Delta == nil {
+			return errors.New("metric counter delta cannot be nil")
+		}
+		newDelta := *m.Delta
+		if exists {
+			newDelta += *existingMetric.Delta
+		}
+		s.metrics[m.MapName()] = &models.Metric{
+			Name:  m.Name,
+			Type:  m.Type,
+			Delta: &newDelta,
+		}
+	default:
+		return errors.New(errmsg.InvalidMetricType)
+	}
+
+	return nil
 }

@@ -42,6 +42,9 @@ func (h *Router) ParseMetricFromJSON(r *http.Request) (*models.Metric, int, erro
 	if err := dec.Decode(&reqMetric); err != nil {
 		return nil, http.StatusBadRequest, errors.New(errmsg.UnableToDecodeJSON)
 	}
+	//if reqMetric.Value == nil && reqMetric.Delta == nil {
+	//	return nil, http.StatusBadRequest, errors.New(errmsg.InvalidMetricValue)
+	//}
 
 	errCode, err := h.baseMetricValidation(reqMetric.Name, reqMetric.Type)
 	if err != nil {
@@ -74,4 +77,20 @@ func (h *Router) baseMetricValidation(metricName string, metricType models.Metri
 	}
 
 	return http.StatusOK, nil
+}
+
+func (h *Router) ParseMetricsFromJSON(r *http.Request) ([]*models.Metric, int, error) {
+	var reqMetrics []*models.Metric
+
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&reqMetrics); err != nil {
+		return nil, http.StatusBadRequest, errors.New(errmsg.UnableToDecodeJSON)
+	}
+	for _, reqMetric := range reqMetrics {
+		errCode, err := h.baseMetricValidation(reqMetric.Name, reqMetric.Type)
+		if err != nil {
+			return nil, errCode, err
+		}
+	}
+	return reqMetrics, http.StatusOK, nil
 }

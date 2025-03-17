@@ -20,16 +20,15 @@ func NewClient(serverURL *url.URL) *Client {
 }
 
 func (c *Client) SendStoredData(data *metrics.DataCollector) {
-	for _, m := range data.Metrics {
-		c.sendMetric(m)
-	}
-	c.sendMetric(data.PollCount)
+	metricsToSend := data.Metrics
+	metricsToSend = append(metricsToSend, data.PollCount)
+	c.sendMetrics(metricsToSend)
 }
 
-func (c *Client) sendMetric(metric *models.Metric) {
+func (c *Client) sendMetrics(metric []*models.Metric) {
 	jsonBody, err := json.Marshal(metric)
 	if err != nil {
-		fmt.Println("failed to serialize metric:", err)
+		fmt.Println("failed to serialize metrics:", err)
 	}
 
 	gzipData, err := c.compressMetric(jsonBody)
@@ -38,7 +37,7 @@ func (c *Client) sendMetric(metric *models.Metric) {
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.URL.String()+"/update/", gzipData)
+	req, err := http.NewRequest(http.MethodPost, c.URL.String()+"/updates/", gzipData)
 	if err != nil {
 		fmt.Println("failed to create request:", err)
 		return

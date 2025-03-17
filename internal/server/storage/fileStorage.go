@@ -76,7 +76,7 @@ func (l *FileSaver) LoadStorage(ctx context.Context) error {
 	for _, oldMetric := range oldMetrics {
 		err := l.Storage.Add(ctx, oldMetric)
 		if err != nil {
-			logger.Log.Error(errmsg.UnableToRestoreMetric, zap.Error(err))
+			logger.Log.Error("unable to restore metric", zap.Error(err))
 			return err
 		}
 		logger.Log.Info("Storage was restored")
@@ -89,7 +89,7 @@ func (l *FileSaver) SaveStorage(ctx context.Context) error {
 	err := l.SaveMetrics(l.Storage.List(ctx))
 
 	if err != nil {
-		return errors.New(errmsg.UnableToSaveMetricInStorage)
+		return errors.New(errmsg.UnableToAddMetric)
 	}
 	logger.Log.Debug("metrics successfully saved to", zap.String("filename", l.FileName))
 	return nil
@@ -97,11 +97,11 @@ func (l *FileSaver) SaveStorage(ctx context.Context) error {
 
 func (l *FileSaver) SaveStorageWithInterval(ctx context.Context, interval int) error {
 	if interval < 0 {
-		return errors.New(errmsg.IntervalMustBePositive)
+		return errors.New("interval must be a positive int value")
 	}
 
 	if l.Storage == nil {
-		return errors.New(errmsg.StorageIsNil)
+		return errors.New("storage is nil")
 	}
 
 	storeTicker := time.NewTicker(time.Duration(interval) * time.Second)

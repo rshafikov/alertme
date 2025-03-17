@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"github.com/rshafikov/alertme/internal/server/errmsg"
 	"testing"
 
@@ -13,13 +14,15 @@ func TestMemStorage_AddAndGet(t *testing.T) {
 	storage := NewMemStorage()
 
 	t.Run("add and get gauge metric", func(t *testing.T) {
+		ctx := context.Background()
+
 		metric, err := models.NewMetric(models.GaugeType, "myGauge", "7777.777")
 		require.NoError(t, err)
 
-		err = storage.Add(metric)
+		err = storage.Add(ctx, metric)
 		require.NoError(t, err)
 
-		got, err := storage.Get(models.GaugeType, "myGauge")
+		got, err := storage.Get(ctx, models.GaugeType, "myGauge")
 		require.NoError(t, err)
 		assert.Equal(t, metric.Name, got.Name)
 		assert.Equal(t, metric.Type, got.Type)
@@ -27,13 +30,15 @@ func TestMemStorage_AddAndGet(t *testing.T) {
 	})
 
 	t.Run("add same gauge metric", func(t *testing.T) {
+		ctx := context.Background()
+
 		metric, err := models.NewMetric(models.GaugeType, "myGauge", "7777.777")
 		require.NoError(t, err)
 
-		err = storage.Add(metric)
+		err = storage.Add(ctx, metric)
 		require.NoError(t, err)
 
-		got, err := storage.Get(models.GaugeType, "myGauge")
+		got, err := storage.Get(ctx, models.GaugeType, "myGauge")
 		require.NoError(t, err)
 		assert.Equal(t, metric.Name, got.Name)
 		assert.Equal(t, metric.Type, got.Type)
@@ -41,13 +46,15 @@ func TestMemStorage_AddAndGet(t *testing.T) {
 	})
 
 	t.Run("add and get counter metric", func(t *testing.T) {
+		ctx := context.Background()
+
 		metric, err := models.NewMetric(models.CounterType, "myCounter", "10")
 		require.NoError(t, err)
 
-		err = storage.Add(metric)
+		err = storage.Add(ctx, metric)
 		require.NoError(t, err)
 
-		got, err := storage.Get(models.CounterType, "myCounter")
+		got, err := storage.Get(ctx, models.CounterType, "myCounter")
 		require.NoError(t, err)
 		assert.Equal(t, metric.Name, got.Name)
 		assert.Equal(t, metric.Type, got.Type)
@@ -56,22 +63,24 @@ func TestMemStorage_AddAndGet(t *testing.T) {
 		newSameMetric, err := models.NewMetric(models.CounterType, "myCounter", "90")
 		require.NoError(t, err)
 
-		err = storage.Add(newSameMetric)
+		err = storage.Add(ctx, newSameMetric)
 		require.NoError(t, err)
 
-		got, err = storage.Get(models.CounterType, "myCounter")
+		got, err = storage.Get(ctx, models.CounterType, "myCounter")
 		require.NoError(t, err)
 		assert.EqualValues(t, 100, *got.Delta)
 	})
 
 	t.Run("add unsupported metric type", func(t *testing.T) {
+		ctx := context.Background()
+
 		value := 100.0
 		metric := &models.Metric{
 			Type:  "unknown",
 			Name:  "test_metric",
 			Value: &value,
 		}
-		err := storage.Add(metric)
+		err := storage.Add(ctx, metric)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), errmsg.InvalidMetricType)
 	})
@@ -81,13 +90,17 @@ func TestMemStorage_GetErrors(t *testing.T) {
 	storage := NewMemStorage()
 
 	t.Run("get metric which not exists", func(t *testing.T) {
-		_, err := storage.Get(models.GaugeType, "missing_metric")
+		ctx := context.Background()
+
+		_, err := storage.Get(ctx, models.GaugeType, "missing_metric")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), errmsg.MetricNotFound)
 	})
 
 	t.Run("get unsupported metric type", func(t *testing.T) {
-		_, err := storage.Get("unknown", "test_metric")
+		ctx := context.Background()
+
+		_, err := storage.Get(ctx, "unknown", "test_metric")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), errmsg.MetricNotFound)
 	})
@@ -96,21 +109,22 @@ func TestMemStorage_GetErrors(t *testing.T) {
 func TestMemStorage_Clear(t *testing.T) {
 	storage := NewMemStorage()
 
-	var (
-		value = 60.0
-		delta = int64(100)
-	)
-	_ = storage.Add(&models.Metric{Type: models.GaugeType, Name: "CPU", Value: &value})
-	_ = storage.Add(&models.Metric{Type: models.CounterType, Name: "UPTIME", Delta: &delta})
+	value := 60.0
+	delta := int64(100)
 
-	storage.Clear()
+	_ = storage.Add(context.Background(), &models.Metric{Type: models.GaugeType, Name: "CPU", Value: &value})
+	_ = storage.Add(context.Background(), &models.Metric{Type: models.CounterType, Name: "UPTIME", Delta: &delta})
+
+	storage.Clear(context.Background())
 
 	t.Run("check if storage is empty", func(t *testing.T) {
-		_, err := storage.Get(models.GaugeType, "CPU")
+		ctx := context.Background()
+
+		_, err := storage.Get(ctx, models.GaugeType, "CPU")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), errmsg.MetricNotFound)
 
-		_, err = storage.Get(models.CounterType, "UPTIME")
+		_, err = storage.Get(ctx, models.CounterType, "UPTIME")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), errmsg.MetricNotFound)
 	})

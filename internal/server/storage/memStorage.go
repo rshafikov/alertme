@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -20,7 +21,7 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (s *MemStorage) Add(m *models.Metric) error {
+func (s *MemStorage) Add(ctx context.Context, m *models.Metric) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -52,7 +53,7 @@ func (s *MemStorage) Add(m *models.Metric) error {
 	return nil
 }
 
-func (s *MemStorage) Get(metricType models.MetricType, metricName string) (*models.Metric, error) {
+func (s *MemStorage) Get(ctx context.Context, metricType models.MetricType, metricName string) (*models.Metric, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -65,7 +66,7 @@ func (s *MemStorage) Get(metricType models.MetricType, metricName string) (*mode
 	return nil, errors.New(errmsg.MetricNotFound)
 }
 
-func (s *MemStorage) List() []*models.Metric {
+func (s *MemStorage) List(ctx context.Context) []*models.Metric {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -77,7 +78,7 @@ func (s *MemStorage) List() []*models.Metric {
 	return metrics
 }
 
-func (s *MemStorage) Clear() {
+func (s *MemStorage) Clear(ctx context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

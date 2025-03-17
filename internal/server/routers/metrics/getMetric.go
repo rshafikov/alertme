@@ -8,6 +8,8 @@ import (
 )
 
 func (h *Router) GetMetricFromURL(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	parsedMetric, responseCode, parseErr := h.ParseMetricFromURL(r)
 	if parseErr != nil {
 		logger.Log.Debug(parseErr.Error())
@@ -15,7 +17,7 @@ func (h *Router) GetMetricFromURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storedMetric, saveErr := h.store.Get(parsedMetric.Type, parsedMetric.Name)
+	storedMetric, saveErr := h.store.Get(ctx, parsedMetric.Type, parsedMetric.Name)
 	if saveErr != nil {
 		logger.Log.Debug(saveErr.Error())
 		http.Error(w, saveErr.Error(), http.StatusNotFound)
@@ -32,6 +34,8 @@ func (h *Router) GetMetricFromURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Router) GetMericFromJSON(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	newMetric, responseCode, parseErr := h.ParseMetricFromJSON(r)
 	if parseErr != nil {
 		logger.Log.Debug(parseErr.Error())
@@ -39,7 +43,7 @@ func (h *Router) GetMericFromJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storedMetric, getErr := h.store.Get(newMetric.Type, newMetric.Name)
+	storedMetric, getErr := h.store.Get(ctx, newMetric.Type, newMetric.Name)
 	if getErr != nil {
 		logger.Log.Debug(getErr.Error())
 		http.Error(w, getErr.Error(), http.StatusNotFound)

@@ -22,11 +22,12 @@ func NewDBStorage(dbURL string) (*DBStorage, error) {
 	db.URL = dbURL
 
 	if dbURL != "" {
-		err := db.Connect()
+		ctx := context.Background()
+		err := db.Connect(ctx)
 		if err != nil {
 			return nil, err
 		}
-		err = db.MakeMigrations()
+		err = db.MakeMigrations(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -37,15 +38,15 @@ func NewDBStorage(dbURL string) (*DBStorage, error) {
 	return nil, errors.New(errmsg.URLCannotBeEmpty)
 }
 
-func (db *DBStorage) Connect() error {
-	_, err := pgx.Connect(context.Background(), db.URL)
+func (db *DBStorage) Connect(ctx context.Context) error {
+	_, err := pgx.Connect(ctx, db.URL)
 
 	if err != nil {
 		logger.Log.Error(errmsg.UnableToConnectToDatabase, zap.Error(err))
 		return err
 	}
 
-	db.Pool, err = pgxpool.New(context.Background(), db.URL)
+	db.Pool, err = pgxpool.New(ctx, db.URL)
 	if err != nil {
 		logger.Log.Error(errmsg.UnableToConnectDBPool, zap.Error(err))
 		return err
@@ -55,9 +56,9 @@ func (db *DBStorage) Connect() error {
 	return nil
 }
 
-func (db *DBStorage) Add(m *models.Metric) error {
+func (db *DBStorage) Add(ctx context.Context, m *models.Metric) error {
 	if m.Type == models.CounterType {
-		oldMetric, _ := db.Get(m.Type, m.Name)
+		oldMetric, _ := db.Get(ctx, m.Type, m.Name)
 		if oldMetric != nil {
 			newDelta := *m.Delta + *oldMetric.Delta
 			m.Delta = &newDelta
@@ -71,7 +72,7 @@ func (db *DBStorage) Add(m *models.Metric) error {
 		SET value = EXCLUDED.value, delta = EXCLUDED.delta, type = EXCLUDED.type;
 	`
 
-	_, err := db.Pool.Exec(context.Background(), query, m.Name, m.Value, m.Delta, m.Type)
+	_, err := db.Pool.Exec(ctx, query, m.Name, m.Value, m.Delta, m.Type)
 	if err != nil {
 		logger.Log.Error("failed to add metric", zap.Error(err))
 		return err
@@ -80,7 +81,8 @@ func (db *DBStorage) Add(m *models.Metric) error {
 	logger.Log.Debug("metric added successfully", zap.String("name", m.Name))
 	return nil
 }
-func (db *DBStorage) Get(metricType models.MetricType, metricName string) (*models.Metric, error) {
+
+func (db *DBStorage) Get(ctx context.Context, metricType models.MetricType, metricName string) (*models.Metric, error) {
 	query := `
 		SELECT name, value, delta, type
 		FROM metrics
@@ -88,7 +90,7 @@ func (db *DBStorage) Get(metricType models.MetricType, metricName string) (*mode
 	`
 
 	var metric models.Metric
-	err := db.Pool.QueryRow(context.Background(), query, metricType, metricName).Scan(
+	err := db.Pool.QueryRow(ctx, query, metricType, metricName).Scan(
 		&metric.Name, &metric.Value, &metric.Delta, &metric.Type,
 	)
 	if err != nil {
@@ -104,13 +106,13 @@ func (db *DBStorage) Get(metricType models.MetricType, metricName string) (*mode
 	return &metric, nil
 }
 
-func (db *DBStorage) List() []*models.Metric {
+func (db *DBStorage) List(ctx context.Context) []*models.Metric {
 	query := `
 		SELECT name, value, delta, type
 		FROM metrics;
 	`
 
-	rows, err := db.Pool.Query(context.Background(), query)
+	rows, err := db.Pool.Query(ctx, query)
 	if err != nil {
 		logger.Log.Error("failed to list metrics", zap.Error(err))
 		return nil
@@ -136,10 +138,10 @@ func (db *DBStorage) List() []*models.Metric {
 	return metrics
 }
 
-func (db *DBStorage) Clear() {
+func (db *DBStorage) Clear(ctx context.Context) {
 	query := `DELETE FROM metrics;`
 
-	_, err := db.Pool.Exec(context.Background(), query)
+	_, err := db.Pool.Exec(ctx, query)
 	if err != nil {
 		logger.Log.Error("failed to clear metrics", zap.Error(err))
 		return
@@ -148,14 +150,14 @@ func (db *DBStorage) Clear() {
 	logger.Log.Debug("metrics cleared successfully")
 }
 
-func (db *DBStorage) MakeMigrations() error {
-	_, err := db.Pool.Exec(context.Background(), migrations.CreateMetricsType)
+func (db *DBStorage) MakeMigrations(ctx context.Context) error {
+	_, err := db.Pool.Exec(ctx, migrations.CreateMetricsType)
 	if err != nil {
 		logger.Log.Error(errmsg.UnableToCreateEnum, zap.Error(err))
 		return err
 	}
 
-	_, err = db.Pool.Exec(context.Background(), migrations.CreateMetricsTable)
+	_, err = db.Pool.Exec(ctx, migrations.CreateMetricsTable)
 	if err != nil {
 		logger.Log.Error(errmsg.UnableToMakeMigrations, zap.Error(err))
 		return err
@@ -163,6 +165,6 @@ func (db *DBStorage) MakeMigrations() error {
 	return nil
 }
 
-func (db *DBStorage) Ping() error {
-	return db.Pool.Ping(context.Background())
+func (db *DBStorage) Ping(ctx context.Context) error {
+	return db.Pool.Ping(ctx)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/go-chi/chi/v5"
 	"github.com/rshafikov/alertme/internal/server/config"
 	"github.com/rshafikov/alertme/internal/server/logger"
@@ -27,11 +28,11 @@ func runServer() error {
 	fileSaver := storage.NewFileSaver(metricsStorage, config.FileStoragePath)
 
 	if config.Restore {
-		_ = fileSaver.LoadStorage()
+		_ = fileSaver.LoadStorage(context.Background())
 	}
 
 	if config.StoreInterval > 0 {
-		err := fileSaver.SaveStorageWithInterval(config.StoreInterval)
+		err := fileSaver.SaveStorageWithInterval(context.Background(), config.StoreInterval)
 		if err != nil {
 			return err
 		}

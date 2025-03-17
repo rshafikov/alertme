@@ -9,6 +9,8 @@ import (
 )
 
 func (h *Router) PingDB(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	db, ok := h.store.(storage.BaseDatabase)
 	if !ok {
 		logger.Log.Error(errmsg.UnableToPingDB)
@@ -16,7 +18,7 @@ func (h *Router) PingDB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := db.Ping()
+	err := db.Ping(ctx)
 	if err != nil {
 		logger.Log.Error(errmsg.UnableToPingDB)
 		http.Error(w, errors.New(errmsg.UnableToPingDB).Error(), http.StatusInternalServerError)

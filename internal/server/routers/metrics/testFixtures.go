@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"bytes"
+	"context"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"github.com/rshafikov/alertme/internal/server/storage"
 	"github.com/stretchr/testify/require"
@@ -61,12 +62,14 @@ func (c *HTTPClient) JSONRequest(t *testing.T, method, path, reqBody string) (*h
 }
 
 func FillStorageWithTestData(s *storage.MemStorage, metrics []models.PlainMetric) error {
+	ctx := context.Background()
+
 	for _, plainMetric := range metrics {
 		metric, convertingErr := plainMetric.ConverToMetric()
 		if convertingErr != nil {
 			return convertingErr
 		}
-		if addErr := s.Add(metric); addErr != nil {
+		if addErr := s.Add(ctx, metric); addErr != nil {
 			return addErr
 		}
 	}

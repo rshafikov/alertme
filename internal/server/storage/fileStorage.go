@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/rshafikov/alertme/internal/server/errmsg"
@@ -67,13 +68,13 @@ func (l *FileSaver) SaveMetrics(metrics []*models.Metric) error {
 	return nil
 }
 
-func (l *FileSaver) LoadStorage() error {
+func (l *FileSaver) LoadStorage(ctx context.Context) error {
 	oldMetrics, loadErr := l.LoadMetrics()
 	if loadErr != nil {
 		return loadErr
 	}
 	for _, oldMetric := range oldMetrics {
-		err := l.Storage.Add(oldMetric)
+		err := l.Storage.Add(ctx, oldMetric)
 		if err != nil {
 			logger.Log.Error(errmsg.UnableToRestoreMetric, zap.Error(err))
 			return err
@@ -83,9 +84,9 @@ func (l *FileSaver) LoadStorage() error {
 	return nil
 }
 
-func (l *FileSaver) SaveStorage() error {
+func (l *FileSaver) SaveStorage(ctx context.Context) error {
 	logger.Log.Debug("trying to save metrics to", zap.String("filename", l.FileName))
-	err := l.SaveMetrics(l.Storage.List())
+	err := l.SaveMetrics(l.Storage.List(ctx))
 
 	if err != nil {
 		return errors.New(errmsg.UnableToSaveMetricInStorage)
@@ -94,7 +95,7 @@ func (l *FileSaver) SaveStorage() error {
 	return nil
 }
 
-func (l *FileSaver) SaveStorageWithInterval(interval int) error {
+func (l *FileSaver) SaveStorageWithInterval(ctx context.Context, interval int) error {
 	if interval < 0 {
 		return errors.New(errmsg.IntervalMustBePositive)
 	}
@@ -106,8 +107,12 @@ func (l *FileSaver) SaveStorageWithInterval(interval int) error {
 	storeTicker := time.NewTicker(time.Duration(interval) * time.Second)
 
 	go func() {
-		for range storeTicker.C {
-			_ = l.SaveStorage()
+		select {
+		case <-storeTicker.C:
+			_ = l.SaveStorage(ctx)
+		case <-ctx.Done():
+			storeTicker.Stop()
+			return
 		}
 	}()
 	return nil

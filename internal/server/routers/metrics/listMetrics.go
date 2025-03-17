@@ -9,7 +9,9 @@ import (
 )
 
 func (h *Router) ListMetrics(w http.ResponseWriter, r *http.Request) {
-	metrics := h.store.List()
+	ctx := r.Context()
+
+	metrics := h.store.List(ctx)
 
 	var plainMetrics []models.PlainMetric
 	for _, metric := range metrics {

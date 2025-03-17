@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/rshafikov/alertme/internal/server/models"
@@ -50,23 +51,27 @@ func TestFileLoader_LoadAndSaveToStorage(t *testing.T) {
 	expectedMetrics := []*models.Metric{counter, gauge}
 
 	t.Run("Load file not found", func(t *testing.T) {
+		ctx := context.Background()
+
 		expectedErrMsg := fmt.Sprintf("open %s: no such file or directory", TestFileName)
 		storage := NewMemStorage()
 		fileLoader := NewFileSaver(storage, TestFileName)
-		loadErr := fileLoader.LoadStorage()
+		loadErr := fileLoader.LoadStorage(ctx)
 		assert.Error(t, loadErr)
 		assert.EqualError(t, loadErr, expectedErrMsg)
 	})
 
 	t.Run("Save metrics from storage to a file", func(t *testing.T) {
+		ctx := context.Background()
+
 		storage := NewMemStorage()
 		for _, metric := range expectedMetrics {
-			err = storage.Add(metric)
+			err = storage.Add(ctx, metric)
 			require.NoError(t, err)
 		}
 
 		fileLoader := NewFileSaver(storage, TestFileName)
-		err = fileLoader.SaveStorage()
+		err = fileLoader.SaveStorage(ctx)
 		defer os.Remove(TestFileName)
 		require.NoError(t, err)
 
@@ -100,11 +105,13 @@ func TestFileLoader_LoadAndSaveToStorage(t *testing.T) {
 		storage := NewMemStorage()
 		fileLoader := NewFileSaver(storage, TestFileName)
 
-		loadMetricsErr := fileLoader.LoadStorage()
+		ctx := context.Background()
+
+		loadMetricsErr := fileLoader.LoadStorage(ctx)
 		assert.NoError(t, loadMetricsErr)
 
 		for _, metric := range metricsList {
-			storedMetric, getErr := storage.Get(metric.Type, metric.Name)
+			storedMetric, getErr := storage.Get(ctx, metric.Type, metric.Name)
 			assert.NoError(t, getErr)
 			assert.Equal(t, metric, storedMetric)
 		}

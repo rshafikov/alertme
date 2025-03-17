@@ -9,6 +9,7 @@ import (
 )
 
 func (h *Router) CreateMetricFromURL(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	newMetric, responseCode, parseErr := h.ParseMetricFromURL(r)
 
 	if parseErr != nil {
@@ -17,7 +18,7 @@ func (h *Router) CreateMetricFromURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if storageErr := h.store.Add(newMetric); storageErr != nil {
+	if storageErr := h.store.Add(ctx, newMetric); storageErr != nil {
 		logger.Log.Debug(storageErr.Error())
 		http.Error(w, storageErr.Error(), http.StatusInternalServerError)
 		return
@@ -28,6 +29,8 @@ func (h *Router) CreateMetricFromURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Router) CreateMetricFromJSON(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	newMetric, responseCode, parseErr := h.ParseMetricFromJSON(r)
 	if parseErr != nil {
 		logger.Log.Debug(parseErr.Error())
@@ -35,13 +38,13 @@ func (h *Router) CreateMetricFromJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if saveErr := h.store.Add(newMetric); saveErr != nil {
+	if saveErr := h.store.Add(ctx, newMetric); saveErr != nil {
 		logger.Log.Debug(saveErr.Error())
 		http.Error(w, saveErr.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	createdMetric, getErr := h.store.Get(newMetric.Type, newMetric.Name)
+	createdMetric, getErr := h.store.Get(ctx, newMetric.Type, newMetric.Name)
 	if getErr != nil {
 		logger.Log.Debug(getErr.Error())
 		http.Error(w, getErr.Error(), http.StatusInternalServerError)

@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/rshafikov/alertme/internal/server/config"
 	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/routers/metrics"
 	"github.com/rshafikov/alertme/internal/server/storage"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
+	"time"
 )
 
 func main() {
@@ -40,9 +43,30 @@ func runServer() error {
 
 	mR := metrics.NewMetricsRouter(metricsStorage)
 
-	databaseStorage, _ := storage.NewDBStorage(config.DatabaseURL)
-	if databaseStorage != nil {
-		mR = metrics.NewMetricsRouter(databaseStorage)
+	if config.DatabaseURL != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+
+		databaseStorage := storage.NewDBStorage(config.DatabaseURL)
+		err := databaseStorage.BootStrap(ctx)
+
+		select {
+		case <-ctx.Done():
+			logger.Log.Warn("database bootstrap timeout", zap.Error(ctx.Err()))
+			err = storage.ErrDB
+		default:
+		}
+
+		if err != nil {
+			if errors.Is(err, storage.ErrDB) {
+				logger.Log.Warn("database bootstrap failed, in-memory storage will be used", zap.Error(err))
+			} else {
+				return err
+			}
+		} else {
+			mR = metrics.NewMetricsRouter(databaseStorage)
+		}
+
 	}
 
 	r := chi.NewRouter()

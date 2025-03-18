@@ -5,12 +5,15 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rshafikov/alertme/internal/server/errmsg"
 	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/migrations"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"go.uber.org/zap"
+
+	"github.com/jackc/pgerrcode"
 )
 
 const updateQuery = `
@@ -26,32 +29,51 @@ const getQuery = `
 	WHERE type = $1 AND name = $2;
 `
 
+var ErrDB = errors.New("db error")
+
 type DBStorage struct {
 	URL  string
 	Pool *pgxpool.Pool
 }
 
-//func (db *DBStorage) BootStrap(ctx context.Context)
+func NewDBStorage(dbURL string) *DBStorage {
+	return &DBStorage{
+		URL:  dbURL,
+		Pool: nil,
+	}
+}
 
-func NewDBStorage(dbURL string) (*DBStorage, error) {
-	var db DBStorage
-	db.URL = dbURL
+func (db *DBStorage) BootStrap(ctx context.Context) error {
+	err := db.Connect(ctx)
 
-	if dbURL != "" {
-		ctx := context.Background()
-		err := db.Connect(ctx)
-		if err != nil {
-			return nil, err
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == pgerrcode.ConnectionException {
+				logger.Log.Warn("unable to connect to database")
+				err = ErrDB
+			}
 		}
-		err = db.MakeMigrations(ctx)
-		if err != nil {
-			return nil, err
-		}
-		logger.Log.Info("using database:", zap.String("dbURL", dbURL))
-		return &db, nil
+
+		return err
 	}
 
-	return nil, errors.New("url cannot be empty")
+	err = db.MakeMigrations(ctx)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == pgerrcode.DuplicateTable {
+				logger.Log.Warn("schema already exists, skipping migrations")
+				return nil
+			}
+			err = ErrDB
+		}
+
+		return err
+	}
+
+	logger.Log.Info("using database:", zap.String("dbURL", db.URL))
+	return nil
 }
 
 func (db *DBStorage) Connect(ctx context.Context) error {

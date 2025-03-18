@@ -10,12 +10,12 @@ import (
 )
 
 const (
-	baseHost            = "localhost"
-	baseHostPort        = "8080"
-	baseStoreInterval   = 300
-	baseFileStoragePath = "metrics.txt"
-	baseRestore         = false
-	baseLogLevel        = "info"
+	defaultHost            = "localhost"
+	defaultHostPort        = "8080"
+	defaultStoreInterval   = 300
+	defaultFileStoragePath = "metrics.txt"
+	defaultRestore         = false
+	defaultLogLevel        = "info"
 )
 
 type netAddress struct {
@@ -99,7 +99,7 @@ func (dbu *dbSettings) Set(s string) error {
 	return nil
 }
 
-var Address = netAddress{Host: baseHost, Port: baseHostPort}
+var Address = netAddress{Host: defaultHost, Port: defaultHostPort}
 var DatabaseSettings = dbSettings{}
 var StoreInterval int
 var FileStoragePath string
@@ -114,10 +114,10 @@ func InitServerFlags() {
 	_ = flag.Value(&DatabaseSettings)
 	flag.Var(&DatabaseSettings, "d", "database url")
 
-	flag.IntVar(&StoreInterval, "i", baseStoreInterval, "interval to store metrics, in seconds")
-	flag.StringVar(&FileStoragePath, "f", baseFileStoragePath, "storage path - file to store metrics")
-	flag.BoolVar(&Restore, "r", baseRestore, "restore metrics from file, specified in the storage path")
-	flag.StringVar(&LogLevel, "l", baseLogLevel, "log level")
+	flag.IntVar(&StoreInterval, "i", defaultStoreInterval, "interval to store metrics, in seconds")
+	flag.StringVar(&FileStoragePath, "f", defaultFileStoragePath, "storage path - file to store metrics")
+	flag.BoolVar(&Restore, "r", defaultRestore, "restore metrics from file, specified in the storage path")
+	flag.StringVar(&LogLevel, "l", defaultLogLevel, "log level")
 	flag.Parse()
 
 	if StoreInterval < 0 {

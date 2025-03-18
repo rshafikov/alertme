@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/rshafikov/alertme/internal/agent"
 	"github.com/rshafikov/alertme/internal/agent/config"
 	"github.com/rshafikov/alertme/internal/agent/metrics"
@@ -45,10 +44,14 @@ func main() {
 
 func CollectMetrics(dc *metrics.DataCollector) {
 	dc.UpdateMetrics()
-	fmt.Println("Metrics were updated")
+	logger.Log.Info("metrics were updated")
 }
 
 func SendMetrics(client *agent.Client, dataCollector *metrics.DataCollector) {
-	client.SendStoredData(dataCollector)
-	fmt.Println("Metrics were sent")
+	err := client.SendStoredData(dataCollector)
+	if err != nil {
+		logger.Log.Error("unable to send metrics, remote server might be not available")
+	} else {
+		logger.Log.Info("metrics were sent")
+	}
 }

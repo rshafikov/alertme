@@ -13,7 +13,7 @@ const (
 	defaultPort           = "8080"
 	defaultReportInterval = 10
 	defaultPollInterval   = 2
-	baseLogLevel          = "info"
+	defaultLogLevel       = "info"
 )
 
 type netAddress struct {
@@ -48,7 +48,7 @@ func InitAgentFlags() {
 	flag.Var(&ServerAddress, "a", "server address")
 	flag.IntVar(&ReportInterval, "r", defaultReportInterval, "report interval")
 	flag.IntVar(&PollInterval, "p", defaultPollInterval, "poll interval")
-	flag.StringVar(&LogLevel, "l", baseLogLevel, "log level")
+	flag.StringVar(&LogLevel, "l", defaultLogLevel, "log level")
 	flag.Parse()
 	if ReportInterval <= 0 {
 		log.Fatal("report interval cannot be negative or null")

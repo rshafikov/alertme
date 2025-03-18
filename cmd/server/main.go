@@ -31,7 +31,12 @@ func runServer() error {
 	fileSaver := storage.NewFileSaver(metricsStorage, config.FileStoragePath)
 
 	if config.Restore {
-		_ = fileSaver.LoadStorage(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := fileSaver.LoadStorage(ctx); err != nil {
+			logger.Log.Error("failed to load storage", zap.Error(err))
+		}
 	}
 
 	if config.StoreInterval > 0 {
@@ -50,15 +55,10 @@ func runServer() error {
 		databaseStorage := storage.NewDBStorage(config.DatabaseURL)
 		err := databaseStorage.BootStrap(ctx)
 
-		select {
-		case <-ctx.Done():
-			logger.Log.Warn("database bootstrap timeout", zap.Error(ctx.Err()))
-			err = storage.ErrDB
-		default:
-		}
-
 		if err != nil {
-			if errors.Is(err, storage.ErrDB) {
+			if errors.Is(err, context.DeadlineExceeded) {
+				logger.Log.Warn("database bootstrap timeout", zap.Error(err))
+			} else if errors.Is(err, storage.ErrDB) {
 				logger.Log.Warn("database bootstrap failed, in-memory storage will be used", zap.Error(err))
 			} else {
 				return err

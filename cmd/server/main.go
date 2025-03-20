@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"github.com/go-chi/chi/v5"
-	"github.com/rshafikov/alertme/internal/server/config"
 	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/routers/metrics"
+	"github.com/rshafikov/alertme/internal/server/settings"
 	"github.com/rshafikov/alertme/internal/server/storage"
 	"go.uber.org/zap"
 	"log"
@@ -15,9 +15,9 @@ import (
 )
 
 func main() {
-	config.InitServerConfiguration()
+	settings.InitServerConfiguration()
 
-	if err := logger.Initialize(config.LogLevel); err != nil {
+	if err := logger.Initialize(settings.CONF.LogLevel); err != nil {
 		log.Fatal(err)
 	}
 
@@ -28,49 +28,61 @@ func main() {
 
 func runServer() error {
 	metricsStorage := storage.NewMemStorage()
-	fileSaver := storage.NewFileSaver(metricsStorage, config.FileStoragePath)
+	fileSaver := storage.NewFileSaver(metricsStorage, settings.CONF.FileStoragePath)
 
-	if config.Restore {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		if err := fileSaver.LoadStorage(ctx); err != nil {
+	if settings.CONF.Restore {
+		if err := restoreStorage(&fileSaver); err != nil {
 			logger.Log.Error("failed to load storage", zap.Error(err))
 		}
 	}
 
-	if config.StoreInterval > 0 {
-		err := fileSaver.SaveStorageWithInterval(context.Background(), config.StoreInterval)
-		if err != nil {
+	if settings.CONF.StoreInterval > 0 {
+		if err := fileSaver.SaveStorageWithInterval(context.Background(), settings.CONF.StoreInterval); err != nil {
 			return err
 		}
 	}
 
-	mR := metrics.NewMetricsRouter(metricsStorage)
-
-	if config.DatabaseURL != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		defer cancel()
-
-		databaseStorage := storage.NewDBStorage(config.DatabaseURL)
-		err := databaseStorage.BootStrap(ctx)
-
-		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				logger.Log.Warn("database bootstrap timeout", zap.Error(err))
-			} else if errors.Is(err, storage.ErrDB) {
-				logger.Log.Warn("database bootstrap failed, in-memory storage will be used", zap.Error(err))
-			} else {
-				return err
-			}
-		} else {
-			mR = metrics.NewMetricsRouter(databaseStorage)
-		}
-
+	mR, err := setupDatabase(metricsStorage)
+	if err != nil {
+		return err
 	}
 
+	return startServer(mR)
+}
+
+func restoreStorage(fileSaver *storage.FileSaver) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return fileSaver.LoadStorage(ctx)
+}
+
+func setupDatabase(memStorage *storage.MemStorage) (*metrics.Router, error) {
+	if settings.CONF.DatabaseURL == "" {
+		return metrics.NewMetricsRouter(memStorage), nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	databaseStorage := storage.NewDBStorage(settings.CONF.DatabaseURL)
+	if err := databaseStorage.BootStrap(ctx); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			logger.Log.Warn("database bootstrap timeout", zap.Error(err))
+			return metrics.NewMetricsRouter(memStorage), nil
+		}
+		if errors.Is(err, storage.ErrDB) {
+			logger.Log.Warn("database bootstrap failed, in-memory storage will be used", zap.Error(err))
+			return metrics.NewMetricsRouter(memStorage), nil
+		}
+		return nil, err
+	}
+
+	return metrics.NewMetricsRouter(databaseStorage), nil
+}
+
+func startServer(mR *metrics.Router) error {
 	r := chi.NewRouter()
 	r.Mount("/", mR.Routes())
 
-	return http.ListenAndServe(config.Address.String(), r)
+	return http.ListenAndServe(settings.CONF.ServerAddress.String(), r)
 }

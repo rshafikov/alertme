@@ -157,6 +157,9 @@ tasks:
     deps: [ linter, unit-tests, build, iter-9, ]
     vars:
       DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
+    preconditions:
+      - test -n "$(lsof -i :5432)"
+
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)
@@ -173,6 +176,8 @@ tasks:
     deps: [ linter, unit-tests, build, iter-10, ]
     vars:
       DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
+    preconditions:
+      - test -n "$(lsof -i :5432)"
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)
@@ -189,6 +194,8 @@ tasks:
     deps: [ linter, unit-tests, build, iter-11, ]
     vars:
       DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
+    preconditions:
+      - test -n "$(lsof -i :5432)"
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)
@@ -205,6 +212,8 @@ tasks:
     deps: [ linter, unit-tests, build, iter-12, ]
     vars:
       DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
+    preconditions:
+      - test -n "$(lsof -i :5432)"
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)
@@ -221,6 +230,8 @@ tasks:
     deps: [ linter, unit-tests, build, iter-13, ]
     vars:
       DATABASE_DSN: postgres://postgres:password@localhost:5432/postgres
+    preconditions:
+      - test -n "$(lsof -i :5432)"
     cmds:
       - |
         SERVER_PORT=$(random-practicum unused-port)

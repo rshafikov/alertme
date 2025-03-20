@@ -1,4 +1,4 @@
-package config
+package settings
 
 import (
 	"errors"
@@ -17,6 +17,16 @@ const (
 	defaultRestore         = false
 	defaultLogLevel        = "info"
 )
+
+type serverConfig struct {
+	ServerAddress    netAddress
+	DatabaseSettings dbSettings
+	StoreInterval    int
+	FileStoragePath  string
+	Restore          bool
+	LogLevel         string
+	DatabaseURL      string
+}
 
 type netAddress struct {
 	Host string
@@ -99,30 +109,32 @@ func (dbu *dbSettings) Set(s string) error {
 	return nil
 }
 
-var Address = netAddress{Host: defaultHost, Port: defaultHostPort}
-var DatabaseSettings = dbSettings{}
-var StoreInterval int
-var FileStoragePath string
-var Restore bool
-var LogLevel string
-var DatabaseURL string
+var CONF = serverConfig{
+	ServerAddress:    netAddress{Host: defaultHost, Port: defaultHostPort},
+	DatabaseSettings: dbSettings{},
+	StoreInterval:    defaultStoreInterval,
+	FileStoragePath:  defaultFileStoragePath,
+	Restore:          defaultRestore,
+	LogLevel:         defaultLogLevel,
+	DatabaseURL:      "",
+}
 
 func InitServerFlags() {
-	_ = flag.Value(&Address)
-	flag.Var(&Address, "a", "server address")
+	_ = flag.Value(&CONF.ServerAddress)
+	flag.Var(&CONF.ServerAddress, "a", "server address")
 
-	_ = flag.Value(&DatabaseSettings)
-	flag.Var(&DatabaseSettings, "d", "database url")
+	_ = flag.Value(&CONF.DatabaseSettings)
+	flag.Var(&CONF.DatabaseSettings, "d", "database url")
 
-	flag.IntVar(&StoreInterval, "i", defaultStoreInterval, "interval to store metrics, in seconds")
-	flag.StringVar(&FileStoragePath, "f", defaultFileStoragePath, "storage path - file to store metrics")
-	flag.BoolVar(&Restore, "r", defaultRestore, "restore metrics from file, specified in the storage path")
-	flag.StringVar(&LogLevel, "l", defaultLogLevel, "log level")
+	flag.IntVar(&CONF.StoreInterval, "i", defaultStoreInterval, "interval to store metrics, in seconds")
+	flag.StringVar(&CONF.FileStoragePath, "f", defaultFileStoragePath, "storage path - file to store metrics")
+	flag.BoolVar(&CONF.Restore, "r", defaultRestore, "restore metrics from file, specified in the storage path")
+	flag.StringVar(&CONF.LogLevel, "l", defaultLogLevel, "log level")
 	flag.Parse()
 
-	if StoreInterval < 0 {
+	if CONF.StoreInterval < 0 {
 		log.Fatal("store interval cannot be negative")
 	}
 
-	DatabaseURL = DatabaseSettings.String()
+	CONF.DatabaseURL = CONF.DatabaseSettings.String()
 }

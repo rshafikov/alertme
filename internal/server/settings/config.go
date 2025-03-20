@@ -1,4 +1,4 @@
-package config
+package settings
 
 import (
 	"fmt"
@@ -15,27 +15,27 @@ func InitServerConfiguration() {
 			if err != nil {
 				log.Fatal("invalid ADDRESS environment variable: ", ServerEnv.ServerAddress)
 			}
-			Address.Host = host
-			Address.Port = port
+			CONF.ServerAddress.Host = host
+			CONF.ServerAddress.Port = port
 		}
 		if ServerEnv.StoreInteval >= 0 {
-			StoreInterval = ServerEnv.StoreInteval
+			CONF.StoreInterval = ServerEnv.StoreInteval
 		}
 		if ServerEnv.FileStoragePath != "" {
-			FileStoragePath = ServerEnv.FileStoragePath
+			CONF.FileStoragePath = ServerEnv.FileStoragePath
 		}
 		if ServerEnv.Restore {
-			Restore = ServerEnv.Restore
+			CONF.Restore = ServerEnv.Restore
 		}
 		if ServerEnv.LogLevel != "" {
-			LogLevel = ServerEnv.LogLevel
+			CONF.LogLevel = ServerEnv.LogLevel
 		}
 		if ServerEnv.DatabaseURL != "" {
-			err := DatabaseSettings.Set(ServerEnv.DatabaseURL)
+			err := CONF.DatabaseSettings.Set(ServerEnv.DatabaseURL)
 			if err != nil {
 				log.Fatal("Unable to parse DATABASE_DSN environment variable: ", ServerEnv.DatabaseURL)
 			}
-			DatabaseURL = DatabaseSettings.String()
+			CONF.DatabaseURL = CONF.DatabaseSettings.String()
 		}
 	}
 	initMessage := "\033[1;36m╭────────────────────────────────────────\033[0m\n" +
@@ -49,8 +49,15 @@ func InitServerConfiguration() {
 		"\033[1;36m╰────────────────────────────────────────\033[0m\n"
 
 	dbURLMessage := "-------"
-	if DatabaseURL != "" {
-		dbURLMessage = DatabaseURL
+	if CONF.DatabaseURL != "" {
+		dbURLMessage = CONF.DatabaseURL
 	}
-	fmt.Printf(initMessage, Address.String(), StoreInterval, FileStoragePath, Restore, dbURLMessage)
+	fmt.Printf(
+		initMessage,
+		CONF.ServerAddress.String(),
+		CONF.StoreInterval,
+		CONF.FileStoragePath,
+		CONF.Restore,
+		dbURLMessage,
+	)
 }

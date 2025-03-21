@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/go-chi/chi/v5"
+	"github.com/rshafikov/alertme/internal/server/database"
 	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/routers/metrics"
 	"github.com/rshafikov/alertme/internal/server/settings"
@@ -27,8 +28,8 @@ func main() {
 }
 
 func runServer() error {
-	metricsStorage := storage.NewMemStorage()
-	fileSaver := storage.NewFileSaver(metricsStorage, settings.CONF.FileStoragePath)
+	memStorage := storage.NewMemStorage()
+	fileSaver := storage.NewFileSaver(memStorage, settings.CONF.FileStoragePath)
 
 	if settings.CONF.Restore {
 		if err := restoreStorage(&fileSaver); err != nil {
@@ -42,12 +43,14 @@ func runServer() error {
 		}
 	}
 
-	mR, err := setupDatabase(metricsStorage)
-	if err != nil {
-		return err
+	metricsRouter := metrics.NewMetricsRouter(memStorage)
+
+	db, _ := setupDB(settings.CONF.DatabaseURL)
+	if db != nil {
+		metricsRouter = metrics.NewMetricsRouter(db)
 	}
 
-	return startServer(mR)
+	return startServer(metricsRouter)
 }
 
 func restoreStorage(fileSaver *storage.FileSaver) error {
@@ -56,28 +59,27 @@ func restoreStorage(fileSaver *storage.FileSaver) error {
 	return fileSaver.LoadStorage(ctx)
 }
 
-func setupDatabase(memStorage *storage.MemStorage) (*metrics.Router, error) {
-	if settings.CONF.DatabaseURL == "" {
-		return metrics.NewMetricsRouter(memStorage), nil
+func setupDB(dbURL string) (*database.DB, error) {
+	if dbURL == "" {
+		logger.Log.Info("database url not set, using in-memory database")
+		return nil, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	databaseStorage := storage.NewDBStorage(settings.CONF.DatabaseURL)
-	if err := databaseStorage.BootStrap(ctx); err != nil {
+	db, err := database.BootStrap(ctx, settings.CONF.DatabaseURL)
+	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			logger.Log.Warn("database bootstrap timeout", zap.Error(err))
-			return metrics.NewMetricsRouter(memStorage), nil
 		}
-		if errors.Is(err, storage.ErrDB) {
+		if errors.Is(err, database.ErrDB) {
 			logger.Log.Warn("database bootstrap failed, in-memory storage will be used", zap.Error(err))
-			return metrics.NewMetricsRouter(memStorage), nil
 		}
 		return nil, err
 	}
 
-	return metrics.NewMetricsRouter(databaseStorage), nil
+	return db, nil
 }
 
 func startServer(mR *metrics.Router) error {

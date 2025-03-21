@@ -19,9 +19,3 @@ type BaseMetricSaver interface {
 	SaveMetrics(metrics []*models.Metric) error
 	LoadMetrics() ([]*models.Metric, error)
 }
-
-type BaseDatabase interface {
-	MakeMigrations(ctx context.Context) error
-	Connect(ctx context.Context) error
-	Ping(ctx context.Context) error
-}

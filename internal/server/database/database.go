@@ -1,9 +1,10 @@
-package storage
+package database
 
 import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,9 +13,11 @@ import (
 	"github.com/rshafikov/alertme/internal/server/migrations"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"go.uber.org/zap"
-
-	"github.com/jackc/pgerrcode"
 )
+
+type Pinger interface {
+	Ping(ctx context.Context) error
+}
 
 const updateQuery = `
 	INSERT INTO metrics (name, value, delta, type)
@@ -31,70 +34,96 @@ const getQuery = `
 
 var ErrDB = errors.New("db error")
 
-type DBStorage struct {
+type DBConnection struct {
 	URL  string
 	Pool *pgxpool.Pool
 }
 
-func NewDBStorage(dbURL string) *DBStorage {
-	return &DBStorage{
+func NewDBConnection(dbURL string) *DBConnection {
+	return &DBConnection{
 		URL:  dbURL,
 		Pool: nil,
 	}
 }
 
-func (db *DBStorage) BootStrap(ctx context.Context) error {
-	err := db.Connect(ctx)
-
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == pgerrcode.ConnectionException {
-				logger.Log.Warn("unable to connect to database")
-				err = ErrDB
-			}
-		}
-
-		return err
-	}
-
-	err = db.MakeMigrations(ctx)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == pgerrcode.DuplicateTable {
-				logger.Log.Warn("schema already exists, skipping migrations")
-				return nil
-			}
-			err = ErrDB
-		}
-
-		return err
-	}
-
-	logger.Log.Info("using database:", zap.String("dbURL", db.URL))
-	return nil
-}
-
-func (db *DBStorage) Connect(ctx context.Context) error {
-	_, err := pgx.Connect(ctx, db.URL)
-
+func (c *DBConnection) Connect(ctx context.Context) error {
+	_, err := pgx.Connect(ctx, c.URL)
 	if err != nil {
 		logger.Log.Error("unable to connect to database", zap.Error(err))
 		return err
 	}
 
-	db.Pool, err = pgxpool.New(ctx, db.URL)
+	c.Pool, err = pgxpool.New(ctx, c.URL)
 	if err != nil {
 		logger.Log.Error("unable to connect DB pool", zap.Error(err))
 		return err
 	}
 
-	logger.Log.Debug("connected to database", zap.String("dbURL", db.URL))
+	logger.Log.Debug("connected to database", zap.String("dbURL", c.URL))
 	return nil
 }
 
-func (db *DBStorage) Add(ctx context.Context, m *models.Metric) error {
+func (c *DBConnection) Ping(ctx context.Context) error {
+	return c.Pool.Ping(ctx)
+}
+
+type Migrator struct {
+	Pool *pgxpool.Pool
+}
+
+func NewMigrator(pool *pgxpool.Pool) *Migrator {
+	return &Migrator{Pool: pool}
+}
+
+func (m *Migrator) MakeMigrations(ctx context.Context) error {
+	_, err := m.Pool.Exec(ctx, migrations.CreateMetricsType)
+	if err != nil {
+		logger.Log.Error("unable to create metric type enum", zap.Error(err))
+		return err
+	}
+
+	_, err = m.Pool.Exec(ctx, migrations.CreateMetricsTable)
+	if err != nil {
+		logger.Log.Error("unable to make migrations", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+type DB struct {
+	Pool *pgxpool.Pool
+}
+
+func NewDB(pool *pgxpool.Pool) *DB {
+	return &DB{Pool: pool}
+}
+
+func handlePgError(err error, warnMsg string, errorCode string) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == errorCode {
+		logger.Log.Warn(warnMsg)
+		return ErrDB
+	}
+	return err
+}
+
+func BootStrap(ctx context.Context, dbURL string) (*DB, error) {
+	conn := NewDBConnection(dbURL)
+	if err := conn.Connect(ctx); err != nil {
+		return nil, handlePgError(err, "unable to connect to database", pgerrcode.ConnectionException)
+	}
+
+	migrator := NewMigrator(conn.Pool)
+	if err := migrator.MakeMigrations(ctx); err != nil {
+		return nil, handlePgError(err, "schema already exists, skipping migrations", pgerrcode.DuplicateTable)
+	}
+
+	db := NewDB(conn.Pool)
+	logger.Log.Info("using database:", zap.String("dbURL", dbURL))
+	return db, nil
+}
+
+func (db *DB) Add(ctx context.Context, m *models.Metric) error {
 	if m.Type == models.CounterType {
 		oldMetric, _ := db.Get(ctx, m.Type, m.Name)
 		if oldMetric != nil {
@@ -113,7 +142,7 @@ func (db *DBStorage) Add(ctx context.Context, m *models.Metric) error {
 	return nil
 }
 
-func (db *DBStorage) Get(ctx context.Context, metricType models.MetricType, metricName string) (*models.Metric, error) {
+func (db *DB) Get(ctx context.Context, metricType models.MetricType, metricName string) (*models.Metric, error) {
 	var metric models.Metric
 	err := db.Pool.QueryRow(ctx, getQuery, metricType, metricName).Scan(
 		&metric.Name, &metric.Value, &metric.Delta, &metric.Type,
@@ -131,7 +160,7 @@ func (db *DBStorage) Get(ctx context.Context, metricType models.MetricType, metr
 	return &metric, nil
 }
 
-func (db *DBStorage) List(ctx context.Context) []*models.Metric {
+func (db *DB) List(ctx context.Context) []*models.Metric {
 	query := `
 		SELECT name, value, delta, type
 		FROM metrics;
@@ -163,7 +192,7 @@ func (db *DBStorage) List(ctx context.Context) []*models.Metric {
 	return metrics
 }
 
-func (db *DBStorage) Clear(ctx context.Context) {
+func (db *DB) Clear(ctx context.Context) {
 	query := `DELETE FROM metrics;`
 
 	_, err := db.Pool.Exec(ctx, query)
@@ -175,7 +204,7 @@ func (db *DBStorage) Clear(ctx context.Context) {
 	logger.Log.Debug("metrics cleared successfully")
 }
 
-func (db *DBStorage) AddBatch(ctx context.Context, metrics []*models.Metric) error {
+func (db *DB) AddBatch(ctx context.Context, metrics []*models.Metric) error {
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -211,21 +240,6 @@ func (db *DBStorage) AddBatch(ctx context.Context, metrics []*models.Metric) err
 	return nil
 }
 
-func (db *DBStorage) MakeMigrations(ctx context.Context) error {
-	_, err := db.Pool.Exec(ctx, migrations.CreateMetricsType)
-	if err != nil {
-		logger.Log.Error("unable to create metric type enum", zap.Error(err))
-		return err
-	}
-
-	_, err = db.Pool.Exec(ctx, migrations.CreateMetricsTable)
-	if err != nil {
-		logger.Log.Error("unable to make migrations", zap.Error(err))
-		return err
-	}
-	return nil
-}
-
-func (db *DBStorage) Ping(ctx context.Context) error {
+func (db *DB) Ping(ctx context.Context) error {
 	return db.Pool.Ping(ctx)
 }

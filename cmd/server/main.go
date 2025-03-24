@@ -37,17 +37,17 @@ func runServer() error {
 		}
 	}
 
-	if settings.CONF.StoreInterval > 0 {
-		if err := fileSaver.SaveStorageWithInterval(context.Background(), settings.CONF.StoreInterval); err != nil {
-			return err
-		}
-	}
-
 	metricsRouter := metrics.NewMetricsRouter(memStorage)
 
 	db, _ := setupDB(settings.CONF.DatabaseURL)
 	if db != nil {
 		metricsRouter = metrics.NewMetricsRouter(db)
+	}
+
+	if settings.CONF.StoreInterval > 0 && db == nil {
+		if err := fileSaver.SaveStorageWithInterval(context.Background(), settings.CONF.StoreInterval); err != nil {
+			return err
+		}
 	}
 
 	return startServer(metricsRouter)
@@ -73,7 +73,7 @@ func setupDB(dbURL string) (*database.DB, error) {
 		if errors.Is(err, context.DeadlineExceeded) {
 			logger.Log.Warn("database bootstrap timeout", zap.Error(err))
 		}
-		if errors.Is(err, database.ErrDB) {
+		if errors.Is(err, database.ErrDB) || errors.Is(err, database.ErrConnToDB) {
 			logger.Log.Warn("database bootstrap failed, in-memory storage will be used", zap.Error(err))
 		}
 		return nil, err

@@ -9,6 +9,7 @@ import (
 	"github.com/rshafikov/alertme/internal/agent/metrics"
 	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/models"
+	"github.com/rshafikov/alertme/internal/server/retry"
 	"go.uber.org/zap"
 	"net/http"
 	"net/url"
@@ -27,30 +28,17 @@ func NewClient(serverURL *url.URL) *Client {
 
 func (c *Client) SendStoredData(data *metrics.DataCollector) error {
 	metricsToSend := append(data.Metrics, data.PollCount)
-	err := c.sendMetrics(context.Background(), metricsToSend)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	if err != nil && errors.Is(err, ErrUnableToSendMetrics) {
-		expTimeouts := []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second}
-		logger.Log.Warn("unable to send metrics, retrying", zap.Error(err))
+	err := retry.OnErr(ctx, []error{ErrUnableToSendMetrics}, []time.Duration{
+		1 * time.Second, 3 * time.Second, 5 * time.Second},
+		func(args ...any) error {
+			return c.sendMetrics(ctx, metricsToSend)
+		},
+	)
 
-		for i, timeout := range expTimeouts {
-			time.Sleep(timeout)
-
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
-			defer cancel()
-
-			err = c.sendMetrics(ctx, metricsToSend)
-			if err == nil {
-				logger.Log.Info("metrics sent successfully on retry", zap.Int("attempt", i+1))
-				return nil
-			}
-
-			if ctx.Err() != nil {
-				logger.Log.Warn("retry attempt failed due to timeout", zap.Int("attempt", i+1))
-			} else {
-				logger.Log.Error("retry attempt to send metrics failed", zap.Int("attempt", i+1))
-			}
-		}
+	if err != nil {
 		return err
 	}
 	return nil

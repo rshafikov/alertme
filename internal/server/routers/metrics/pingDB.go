@@ -22,6 +22,7 @@ func (h *Router) PingDB(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Log.Error(errmsg.UnableToPingDB)
 		http.Error(w, errors.New(errmsg.UnableToPingDB).Error(), http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 

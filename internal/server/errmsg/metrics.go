@@ -5,7 +5,7 @@ const (
 	InvalidMetricValue    = "invalid metric value"
 	MetricNameRequired    = "metric name is required"
 	MetricNotFound        = "metric not found"
-	UnableToDecodeJSON    = "cannot decode JSON body"
+	UnableToDecodeJSON    = "invalid request body, cannot decode JSON"
 	UnableToEncodeJSON    = "cannot encode JSON body"
 	UnableToParseInt      = "unable to parse int"
 	UnableToParseFloat    = "unable to parse float"

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/rshafikov/alertme/internal/server/errmsg"
@@ -12,17 +13,22 @@ import (
 	"time"
 )
 
-func NewFileSaver(filePath string) FileLoader {
-	return FileLoader{FileName: filePath}
+func NewFileSaver(storage BaseMetricStorage, filePath string) FileSaver {
+	return FileSaver{
+		Storage:  storage,
+		FileName: filePath,
+	}
 }
 
-type FileLoader struct {
+type FileSaver struct {
+	Storage  BaseMetricStorage
 	FileName string
 }
 
-func (l *FileLoader) LoadMetrics() ([]*models.Metric, error) {
+func (l *FileSaver) LoadMetrics() ([]*models.Metric, error) {
 	file, err := os.Open(l.FileName)
 	if err != nil {
+		logger.Log.Error(errmsg.UnableToOpenFile, zap.Error(err))
 		return nil, err
 	}
 	defer file.Close()
@@ -44,9 +50,10 @@ func (l *FileLoader) LoadMetrics() ([]*models.Metric, error) {
 	return fileMetrics, nil
 }
 
-func (l *FileLoader) SaveMetrics(metrics []*models.Metric) error {
+func (l *FileSaver) SaveMetrics(metrics []*models.Metric) error {
 	file, err := os.OpenFile(l.FileName, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
+		logger.Log.Error(errmsg.UnableToOpenFile, zap.Error(err))
 		return err
 	}
 	defer file.Close()
@@ -61,45 +68,51 @@ func (l *FileLoader) SaveMetrics(metrics []*models.Metric) error {
 	return nil
 }
 
-func (l *FileLoader) LoadStorage(storage BaseMetricStorage) error {
+func (l *FileSaver) LoadStorage(ctx context.Context) error {
 	oldMetrics, loadErr := l.LoadMetrics()
 	if loadErr != nil {
 		return loadErr
 	}
 	for _, oldMetric := range oldMetrics {
-		err := storage.Add(oldMetric)
+		err := l.Storage.Add(ctx, oldMetric)
 		if err != nil {
-			logger.Log.Error("Unable to add old metric to storage", zap.Error(err))
+			logger.Log.Error("unable to restore metric", zap.Error(err))
 			return err
 		}
+		logger.Log.Info("Storage was restored")
 	}
 	return nil
 }
 
-func (l *FileLoader) SaveStorage(storage BaseMetricStorage) error {
+func (l *FileSaver) SaveStorage(ctx context.Context) error {
 	logger.Log.Debug("trying to save metrics to", zap.String("filename", l.FileName))
-	err := l.SaveMetrics(storage.List())
+	err := l.SaveMetrics(l.Storage.List(ctx))
+
 	if err != nil {
-		return errors.New(errmsg.UnableToSaveMetricInStorage)
+		return errors.New(errmsg.UnableToAddMetric)
 	}
 	logger.Log.Debug("metrics successfully saved to", zap.String("filename", l.FileName))
 	return nil
 }
 
-func (l *FileLoader) SaveStorageWithInterval(interval int, storage BaseMetricStorage) error {
+func (l *FileSaver) SaveStorageWithInterval(ctx context.Context, interval int) error {
 	if interval < 0 {
-		return errors.New(errmsg.IntervalMustBePositive)
+		return errors.New("interval must be a positive int value")
 	}
 
-	if storage == nil {
-		return errors.New(errmsg.StorageIsNil)
+	if l.Storage == nil {
+		return errors.New("storage is nil")
 	}
 
 	storeTicker := time.NewTicker(time.Duration(interval) * time.Second)
 
 	go func() {
-		for range storeTicker.C {
-			_ = l.SaveStorage(storage)
+		select {
+		case <-storeTicker.C:
+			_ = l.SaveStorage(ctx)
+		case <-ctx.Done():
+			storeTicker.Stop()
+			return
 		}
 	}()
 	return nil

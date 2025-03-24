@@ -2,8 +2,8 @@ package config
 
 import (
 	"github.com/caarlos0/env/v6"
-	"github.com/rshafikov/alertme/internal/server/logger"
 	"go.uber.org/zap"
+	"log"
 )
 
 type envConfig struct {
@@ -18,7 +18,7 @@ var Env envConfig
 func ParseEnv() error {
 	err := env.Parse(&Env)
 	if err != nil {
-		logger.Log.Error("Unable to parse ENV:", zap.Error(err))
+		log.Println("Unable to parse ENV:", zap.Error(err))
 		return err
 	}
 	return nil

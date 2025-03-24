@@ -2,12 +2,17 @@ package metrics
 
 import (
 	"encoding/json"
+	"errors"
+	"github.com/rshafikov/alertme/internal/server/database"
 	"github.com/rshafikov/alertme/internal/server/errmsg"
 	"github.com/rshafikov/alertme/internal/server/logger"
+	"go.uber.org/zap"
 	"net/http"
 )
 
 func (h *Router) GetMetricFromURL(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	parsedMetric, responseCode, parseErr := h.ParseMetricFromURL(r)
 	if parseErr != nil {
 		logger.Log.Debug(parseErr.Error())
@@ -15,9 +20,13 @@ func (h *Router) GetMetricFromURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storedMetric, saveErr := h.store.Get(parsedMetric.Type, parsedMetric.Name)
+	storedMetric, saveErr := h.store.Get(ctx, parsedMetric.Type, parsedMetric.Name)
 	if saveErr != nil {
-		logger.Log.Debug(saveErr.Error())
+		logger.Log.Debug("an error happened during request", zap.Error(saveErr))
+		if errors.Is(saveErr, database.ErrDB) || errors.Is(saveErr, database.ErrConnToDB) {
+			http.Error(w, saveErr.Error(), http.StatusInternalServerError)
+			return
+		}
 		http.Error(w, saveErr.Error(), http.StatusNotFound)
 		return
 	}
@@ -32,6 +41,8 @@ func (h *Router) GetMetricFromURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Router) GetMericFromJSON(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	newMetric, responseCode, parseErr := h.ParseMetricFromJSON(r)
 	if parseErr != nil {
 		logger.Log.Debug(parseErr.Error())
@@ -39,7 +50,7 @@ func (h *Router) GetMericFromJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storedMetric, getErr := h.store.Get(newMetric.Type, newMetric.Name)
+	storedMetric, getErr := h.store.Get(ctx, newMetric.Type, newMetric.Name)
 	if getErr != nil {
 		logger.Log.Debug(getErr.Error())
 		http.Error(w, getErr.Error(), http.StatusNotFound)

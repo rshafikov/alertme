@@ -1,6 +1,6 @@
 # alertme
 
-**alertme** is a lightweight client-server metric collection service written in Go. It allows an agent to collect system metrics and send them to a central server for storage and retrieval.
+**Alertme** is a lightweight client-server metric collection service written in Go. It allows an agent to collect system metrics and send them to a central server for storage and retrieval.
 
 ## Features
 - Collects system metrics at configurable intervals

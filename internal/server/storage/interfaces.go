@@ -1,17 +1,21 @@
 package storage
 
-import "github.com/rshafikov/alertme/internal/server/models"
+import (
+	"context"
+	"github.com/rshafikov/alertme/internal/server/models"
+)
 
 type BaseMetricStorage interface {
-	Add(metric *models.Metric) error
-	Get(metricType models.MetricType, name string) (*models.Metric, error)
-	List() []*models.Metric
-	Clear()
+	Add(ctx context.Context, metric *models.Metric) error
+	Get(ctx context.Context, metricType models.MetricType, name string) (*models.Metric, error)
+	List(ctx context.Context) []*models.Metric
+	Clear(ctx context.Context)
+	AddBatch(ctx context.Context, metrics []*models.Metric) error
 }
 
 type BaseMetricSaver interface {
-	LoadStorage(storage BaseMetricStorage) error
-	SaveStorage(storage BaseMetricStorage) error
+	LoadStorage(ctx context.Context) error
+	SaveStorage(ctx context.Context) error
 	SaveMetrics(metrics []*models.Metric) error
 	LoadMetrics() ([]*models.Metric, error)
 }

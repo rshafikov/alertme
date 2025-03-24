@@ -1,9 +1,8 @@
-package config
+package settings
 
 import (
 	"github.com/caarlos0/env/v6"
-	"github.com/rshafikov/alertme/internal/server/logger"
-	"go.uber.org/zap"
+	"log"
 )
 
 type envServerConfig struct {
@@ -12,6 +11,7 @@ type envServerConfig struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
 	LogLevel        string `env:"LOG_LEVEL"`
+	DatabaseURL     string `env:"DATABASE_DSN"`
 }
 
 var ServerEnv envServerConfig
@@ -19,7 +19,7 @@ var ServerEnv envServerConfig
 func ParseEnv() error {
 	err := env.Parse(&ServerEnv)
 	if err != nil {
-		logger.Log.Error("Unable to parse ENV:", zap.Error(err))
+		log.Println("Unable to parse ENV:", err)
 		return err
 	}
 	return nil

@@ -79,8 +79,9 @@ func (l *FileSaver) LoadStorage(ctx context.Context) error {
 			logger.Log.Error("unable to restore metric", zap.Error(err))
 			return err
 		}
-		logger.Log.Info("Storage was restored")
 	}
+
+	logger.Log.Info("Storage was restored")
 	return nil
 }
 

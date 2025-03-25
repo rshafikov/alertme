@@ -26,6 +26,7 @@ type serverConfig struct {
 	Restore          bool
 	LogLevel         string
 	DatabaseURL      string
+	Key              string
 }
 
 type netAddress struct {
@@ -117,6 +118,7 @@ var CONF = serverConfig{
 	Restore:          defaultRestore,
 	LogLevel:         defaultLogLevel,
 	DatabaseURL:      "",
+	Key:              "",
 }
 
 func InitServerFlags() {
@@ -130,6 +132,7 @@ func InitServerFlags() {
 	flag.StringVar(&CONF.FileStoragePath, "f", defaultFileStoragePath, "storage path - file to store metrics")
 	flag.BoolVar(&CONF.Restore, "r", defaultRestore, "restore metrics from file, specified in the storage path")
 	flag.StringVar(&CONF.LogLevel, "l", defaultLogLevel, "log level")
+	flag.StringVar(&CONF.Key, "k", "", "a key to sign transmitted data")
 	flag.Parse()
 
 	if CONF.StoreInterval < 0 {

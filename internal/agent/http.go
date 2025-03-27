@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/rshafikov/alertme/internal/agent/config"
 	"github.com/rshafikov/alertme/internal/agent/metrics"
 	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/models"
@@ -55,7 +59,7 @@ func (c *Client) sendMetrics(ctx context.Context, metric []*models.Metric) error
 		return err
 	}
 
-	gzipData, err := c.compressMetric(jsonBody)
+	gzipData, err := c.compressData(jsonBody)
 	if err != nil {
 		logger.Log.Error("failed to compress metric:", zap.Error(err))
 		return err
@@ -66,6 +70,13 @@ func (c *Client) sendMetrics(ctx context.Context, metric []*models.Metric) error
 		logger.Log.Error("failed to create request:", zap.Error(err))
 		return err
 	}
+
+	if config.Key != "" {
+		hash := c.hashData(jsonBody)
+		req.Header.Set("HashSHA256", hash)
+		logger.Log.Info("hash:", zap.String("hash", hash))
+	}
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 	resp, err := http.DefaultClient.Do(req)
@@ -82,7 +93,7 @@ func (c *Client) sendMetrics(ctx context.Context, metric []*models.Metric) error
 	return nil
 }
 
-func (c *Client) compressMetric(data []byte) (*bytes.Buffer, error) {
+func (c *Client) compressData(data []byte) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
 	zb := gzip.NewWriter(buf)
 	_, err := zb.Write(data)
@@ -94,4 +105,10 @@ func (c *Client) compressMetric(data []byte) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	return buf, nil
+}
+
+func (c *Client) hashData(data []byte) string {
+	h := hmac.New(sha256.New, []byte(config.Key))
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil)[:])
 }

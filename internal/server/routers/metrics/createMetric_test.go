@@ -3,7 +3,13 @@ package metrics
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"github.com/rshafikov/alertme/internal/server/errmsg"
+	"github.com/rshafikov/alertme/internal/server/models"
+	"github.com/rshafikov/alertme/internal/server/settings"
 	"github.com/rshafikov/alertme/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,8 +20,7 @@ import (
 	"testing"
 )
 
-const createResourceRESTPath = "/update"
-const createResourceRESTMethod = http.MethodPost
+const updateURLPath = "/update"
 
 func TestMetricsHandler_CreatePlaneMetric(t *testing.T) {
 	memStorage := storage.NewMemStorage()
@@ -24,7 +29,7 @@ func TestMetricsHandler_CreatePlaneMetric(t *testing.T) {
 	defer ts.Close()
 
 	var notCompress bool
-	client := NewHTTPClient(ts.URL+createResourceRESTPath, notCompress)
+	client := NewHTTPClient(ts.URL+updateURLPath, notCompress)
 
 	type want struct {
 		code        int
@@ -120,7 +125,7 @@ func TestMetricsHandler_CreatePlaneMetric(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resp, respBody := client.URLRequest(t, createResourceRESTMethod, test.url)
+			resp, respBody := client.URLRequest(t, http.MethodPost, test.url)
 			defer resp.Body.Close()
 
 			assert.Equal(t, test.want.code, resp.StatusCode)
@@ -212,7 +217,7 @@ func TestMetricsHandler_CreateJSONMetric(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resp, respBody := client.JSONRequest(t, createResourceRESTMethod, createResourceRESTPath+"/", test.reqBody)
+			resp, respBody := client.JSONRequest(t, http.MethodPost, updateURLPath+"/", test.reqBody)
 			defer resp.Body.Close()
 
 			assert.Equal(t, test.expectedCode, resp.StatusCode)
@@ -232,18 +237,17 @@ func TestMetricsRouter_GZIPCompression(t *testing.T) {
 	ts := httptest.NewServer(router.Routes())
 	defer ts.Close()
 
-	requestBody := `{"id": "counter_1", "value": 1000, "type": "gauge"}`
-	successBody := `{"id": "counter_1", "value": 1000, "type": "gauge"}`
+	successBody := `{"id": "test_gzipped_gauge_1", "value": 1000, "type": "gauge"}`
 
 	t.Run("send metric in gzip", func(t *testing.T) {
 		buf := bytes.NewBuffer(nil)
 		zb := gzip.NewWriter(buf)
-		_, err := zb.Write([]byte(requestBody))
+		_, err := zb.Write([]byte(successBody))
 		require.NoError(t, err)
 		err = zb.Close()
 		require.NoError(t, err)
 
-		r := httptest.NewRequest(createResourceRESTMethod, ts.URL+createResourceRESTPath+"/", buf)
+		r := httptest.NewRequest(http.MethodPost, ts.URL+"/update/", buf)
 		r.RequestURI = ""
 		r.Header.Set("Content-Encoding", "gzip")
 		r.Header.Set("Accept-Encoding", "")
@@ -258,11 +262,14 @@ func TestMetricsRouter_GZIPCompression(t *testing.T) {
 		b, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.JSONEq(t, successBody, string(b))
+
+		_, err = memStorage.Get(context.Background(), models.GaugeType, "test_gzipped_gauge_1")
+		require.NoError(t, err)
 	})
 
-	t.Run("accepts_gzip", func(t *testing.T) {
-		buf := bytes.NewBufferString(requestBody)
-		r := httptest.NewRequest(createResourceRESTMethod, ts.URL+createResourceRESTPath+"/", buf)
+	t.Run("accepts gzip", func(t *testing.T) {
+		buf := bytes.NewBufferString(successBody)
+		r := httptest.NewRequest(http.MethodPost, ts.URL+"/update/", buf)
 		r.RequestURI = ""
 		r.Header.Set("Accept-Encoding", "gzip")
 
@@ -279,5 +286,92 @@ func TestMetricsRouter_GZIPCompression(t *testing.T) {
 		require.NoError(t, err)
 
 		require.JSONEq(t, successBody, string(b))
+	})
+
+	t.Run("get gzipped metric", func(t *testing.T) {
+		metricName := "gaugeMustBeGzipped"
+		metricDeltaStr := "1234123123123123123"
+		getRequestBody := `{"id": "gaugeMustBeGzipped", "type": "gauge"}`
+		getSuccessBody := `{"id": "gaugeMustBeGzipped", "value": 1234123123123123123, "type": "gauge"}`
+
+		m, err := models.NewMetric(models.GaugeType, metricName, metricDeltaStr)
+		require.NoError(t, err)
+
+		err = memStorage.Add(context.Background(), m)
+		require.NoError(t, err)
+
+		err = memStorage.Add(context.Background(), m)
+		require.NoError(t, err)
+
+		r := httptest.NewRequest(http.MethodPost, ts.URL+"/value/", strings.NewReader(getRequestBody))
+		r.RequestURI = ""
+		r.Header.Set("Accept-Encoding", "gzip")
+
+		resp, err := http.DefaultClient.Do(r)
+		require.NoError(t, err)
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		defer resp.Body.Close()
+
+		zr, err := gzip.NewReader(resp.Body)
+		require.NoError(t, err, "resp body")
+
+		b, err := io.ReadAll(zr)
+		require.NoError(t, err)
+
+		require.JSONEq(t, getSuccessBody, string(b))
+	})
+
+}
+
+func TestMetricsRouter_HashMiddleware(t *testing.T) {
+	memStorage := storage.NewMemStorage()
+	router := NewMetricsRouter(memStorage)
+	ts := httptest.NewServer(router.Routes())
+	defer ts.Close()
+
+	key := "I voted for Trump"
+	settings.CONF.Key = key
+	h := hmac.New(sha256.New, []byte(key))
+
+	t.Run("send signed and zipped data", func(t *testing.T) {
+		reqBody := `[{"id": "h_1", "value": 1234.56789, "type": "gauge"}, {"id": "h_2", "delta": 123456789, "type": "counter"}]`
+		h.Write([]byte(reqBody))
+		hash := h.Sum(nil)
+		defer h.Reset()
+
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(reqBody))
+		require.NoError(t, err)
+		require.NoError(t, zb.Close())
+
+		r := httptest.NewRequest(http.MethodPost, ts.URL+"/updates/", buf)
+		r.RequestURI = ""
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Accept-Encoding", "gzip")
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("HashSHA256", hex.EncodeToString(hash))
+
+		resp, err := http.DefaultClient.Do(r)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("get signed and zipped data", func(t *testing.T) {
+		gaugeMetricRequest := `{"id": "h_1", "type": "gauge"}`
+		h.Write([]byte(`{"id":"h_1","value":1234.56789,"type":"gauge"}`))
+		hash := h.Sum(nil)
+		r := httptest.NewRequest(http.MethodPost, ts.URL+"/value/", strings.NewReader(gaugeMetricRequest))
+		r.RequestURI = ""
+
+		resp, err := http.DefaultClient.Do(r)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Equal(t, resp.Header.Get("HashSHA256"), hex.EncodeToString(hash))
 	})
 }

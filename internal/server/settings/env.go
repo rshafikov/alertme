@@ -12,6 +12,7 @@ type envServerConfig struct {
 	Restore         bool   `env:"RESTORE"`
 	LogLevel        string `env:"LOG_LEVEL"`
 	DatabaseURL     string `env:"DATABASE_DSN"`
+	Key             string `env:"KEY"`
 }
 
 var ServerEnv envServerConfig

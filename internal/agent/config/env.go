@@ -11,6 +11,7 @@ type envConfig struct {
 	ReportIntrv int    `env:"REPORT_INTERVAL"`
 	PollIntrv   int    `env:"POLL_INTERVAL"`
 	LogLevel    string `env:"LOG_LEVEL"`
+	Key         string `env:"KEY"`
 }
 
 var Env envConfig

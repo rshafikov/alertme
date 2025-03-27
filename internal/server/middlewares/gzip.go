@@ -100,7 +100,7 @@ func GZipper(h http.Handler) http.Handler {
 		if readGzipRequest {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
+				http.Error(w, "compressing error", http.StatusInternalServerError)
 				return
 			}
 			r.Body = cr

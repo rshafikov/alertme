@@ -22,6 +22,7 @@ func (h *Router) Routes() chi.Router {
 	r.Use(middlewares.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middlewares.GZipper)
+	r.Use(middlewares.Hasher)
 
 	r.Get("/", h.ListMetrics)
 	r.Get("/ping", h.PingDB)

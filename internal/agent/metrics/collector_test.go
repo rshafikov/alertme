@@ -12,7 +12,7 @@ func TestUpdateDataCollector(t *testing.T) {
 
 	t.Run("check PollCounter increments", func(t *testing.T) {
 		initialValue := int64(0)
-		dc.UpdateMetrics()
+		dc.UpdateRuntimeMetrics()
 		assert.Greater(t, *dc.PollCount.Delta, initialValue)
 	})
 
@@ -26,7 +26,7 @@ func TestUpdateDataCollector(t *testing.T) {
 			return nil
 		}
 		randValueBefore := getMetricByName("RandomValue", dc.Metrics).Value
-		dc.UpdateMetrics()
+		dc.UpdateRuntimeMetrics()
 		randValueAfter := getMetricByName("RandomValue", dc.Metrics).Value
 
 		assert.NotEqualValues(t, randValueBefore, randValueAfter)

@@ -2,14 +2,22 @@ package metrics
 
 import (
 	"fmt"
+	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/models"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
+	"go.uber.org/zap"
 	"math/rand"
 	"runtime"
+	"time"
 )
 
 type DataCollector struct {
-	Metrics   []*models.Metric
-	PollCount *models.Metric
+	Metrics        []*models.Metric
+	PollCount      *models.Metric
+	TotalMemory    *models.Metric
+	FreeMemory     *models.Metric
+	CPUutilization []*models.Metric
 }
 
 func NewEmptyDataCollector() *DataCollector {
@@ -28,7 +36,7 @@ func (d *DataCollector) String() string {
 	return metrics
 }
 
-func (d *DataCollector) UpdateMetrics() {
+func (d *DataCollector) UpdateRuntimeMetrics() {
 	if d.PollCount.Delta == nil {
 		d.PollCount.Delta = new(int64)
 	}
@@ -71,4 +79,45 @@ func (d *DataCollector) UpdateMetrics() {
 
 func float64Ptr(f float64) *float64 {
 	return &f
+}
+
+func (d *DataCollector) UpdatePSUtilMetrics() {
+	memoryData, err := mem.VirtualMemory()
+	if err != nil {
+		logger.Log.Error("Failed to get virtual memory info", zap.Error(err))
+	}
+
+	d.TotalMemory = &models.Metric{
+		Name:  "TotalMemory",
+		Value: float64Ptr(float64(memoryData.Total)),
+		Delta: nil,
+		Type:  models.GaugeType,
+	}
+
+	d.FreeMemory = &models.Metric{
+		Name:  "FreeMemory",
+		Value: float64Ptr(float64(memoryData.Free)),
+		Delta: nil,
+		Type:  models.GaugeType,
+	}
+	cpuData, err := cpu.Percent(time.Second, true)
+	if err != nil {
+		logger.Log.Error("Failed to get cpu usage", zap.Error(err))
+		return
+	}
+
+	var cpuMetrics []*models.Metric
+	for c, v := range cpuData {
+		cpuMetrics = append(
+			cpuMetrics,
+			&models.Metric{
+				Name:  fmt.Sprintf("CPUutilization%v", c),
+				Value: float64Ptr(v),
+				Delta: nil,
+				Type:  models.GaugeType,
+			},
+		)
+	}
+
+	d.CPUutilization = cpuMetrics
 }

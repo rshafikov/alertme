@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"strconv"
 )
 
 func InitAgentConfiguration() {
@@ -41,6 +42,7 @@ func InitAgentConfiguration() {
 		"\033[1;36m│ \033[1;33m⏱  Poll Interval:    \033[0;37m%-47d \033[1;36m\033[0m\n" +
 		"\033[1;36m│ \033[1;33m🔐 Hash Key:         \033[0;37m%-47s \033[1;36m\033[0m\n" +
 		"\033[1;36m│ \033[1;33m📝 Logging Level:    \033[0;37m%-47s \033[1;36m\033[0m\n" +
+		"\033[1;36m│ \033[1;33m📝 Rate Limit:       \033[0;37m%-47v \033[1;36m\033[0m\n" +
 		"\033[1;36m╰────────────────────────────────────────\033[0m\n"
 
 	keyInitMessage := "-----"
@@ -48,5 +50,18 @@ func InitAgentConfiguration() {
 		keyInitMessage = "********"
 	}
 
-	fmt.Printf(initMessage, ServerAddress.String(), ReportInterval, PollInterval, keyInitMessage, LogLevel)
+	rateLimitInitMessage := "-----"
+	if RateLimit > 0 {
+		rateLimitInitMessage = strconv.Itoa(RateLimit)
+	}
+
+	fmt.Printf(
+		initMessage,
+		ServerAddress.String(),
+		ReportInterval,
+		PollInterval,
+		keyInitMessage,
+		LogLevel,
+		rateLimitInitMessage,
+	)
 }

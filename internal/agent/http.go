@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/rshafikov/alertme/internal/agent/config"
-	"github.com/rshafikov/alertme/internal/agent/metrics"
 	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"github.com/rshafikov/alertme/internal/server/retry"
@@ -30,15 +29,14 @@ func NewClient(serverURL *url.URL) *Client {
 	return &Client{URL: serverURL}
 }
 
-func (c *Client) SendStoredData(data *metrics.DataCollector) error {
-	metricsToSend := append(data.Metrics, data.PollCount)
+func (c *Client) SendData(metrics []*models.Metric) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	err := retry.OnErr(ctx, []error{ErrUnableToSendMetrics}, []time.Duration{
 		1 * time.Second, 3 * time.Second, 5 * time.Second},
 		func(args ...any) error {
-			return c.sendMetrics(ctx, metricsToSend)
+			return c.sendMetrics(ctx, metrics)
 		},
 	)
 
@@ -84,8 +82,13 @@ func (c *Client) sendMetrics(ctx context.Context, metric []*models.Metric) error
 		logger.Log.Error("failed to send request:", zap.Error(err))
 		return ErrUnableToSendMetrics
 	}
-	if resp.StatusCode == http.StatusInternalServerError {
-		logger.Log.Error("internal server error", zap.Error(ErrUnableToSendMetrics))
+
+	if resp.StatusCode != http.StatusOK {
+		logger.Log.Error(
+			"unable to send metrics",
+			zap.Int("response_code", resp.StatusCode),
+			zap.Error(ErrUnableToSendMetrics),
+		)
 		return ErrUnableToSendMetrics
 	}
 

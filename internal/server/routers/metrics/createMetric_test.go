@@ -372,6 +372,6 @@ func TestMetricsRouter_HashMiddleware(t *testing.T) {
 		defer resp.Body.Close()
 
 		require.Equal(t, http.StatusOK, resp.StatusCode)
-		require.Equal(t, resp.Header.Get("HashSHA256"), hex.EncodeToString(hash))
+		require.Equal(t, hex.EncodeToString(hash), resp.Header.Get("Hashsha256"))
 	})
 }

@@ -14,6 +14,7 @@ const (
 	defaultReportInterval = 10
 	defaultPollInterval   = 2
 	defaultLogLevel       = "info"
+	defaultRateLimit      = 2
 )
 
 type netAddress struct {
@@ -44,13 +45,15 @@ var ReportInterval int
 var PollInterval int
 var LogLevel string
 var Key string
+var RateLimit int
 
 func InitAgentFlags() {
 	flag.Var(&ServerAddress, "a", "server address")
 	flag.IntVar(&ReportInterval, "r", defaultReportInterval, "report interval")
 	flag.IntVar(&PollInterval, "p", defaultPollInterval, "poll interval")
-	flag.StringVar(&LogLevel, "l", defaultLogLevel, "log level")
+	flag.StringVar(&LogLevel, "v", defaultLogLevel, "log level")
 	flag.StringVar(&Key, "k", "", "key to sign sending data")
+	flag.IntVar(&RateLimit, "l", defaultRateLimit, "rate limit")
 	flag.Parse()
 
 	if ReportInterval <= 0 {

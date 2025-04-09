@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"github.com/rshafikov/alertme/internal/server/logger"
+	"go.uber.org/zap"
 	"net/http"
 )
 
@@ -22,4 +23,8 @@ func (h *Router) CreateMetricsFromJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte(""))
+	if err != nil {
+		logger.Log.Error("unable to process metrics", zap.Error(err))
+	}
 }

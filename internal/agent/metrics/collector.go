@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/models"
@@ -12,18 +13,35 @@ import (
 	"time"
 )
 
+const SendMetricsTimeout = time.Second * 1
+
+type MetricSource int
+
+const (
+	RuntimeMetrics MetricSource = iota
+	PSUtilMetrics
+)
+
 type DataCollector struct {
 	Metrics        []*models.Metric
 	PollCount      *models.Metric
 	TotalMemory    *models.Metric
 	FreeMemory     *models.Metric
-	CPUutilization []*models.Metric
+	CPUUtilization []*models.Metric
 }
 
 func NewEmptyDataCollector() *DataCollector {
 	initalCount := int64(0)
 	return &DataCollector{
 		PollCount: &models.Metric{Name: "PollCount", Delta: &initalCount, Type: models.CounterType},
+	}
+}
+
+func (d *DataCollector) CollectMetrics(ticker *time.Ticker) {
+	for range ticker.C {
+		logger.Log.Debug("collecting metrics")
+		d.UpdateRuntimeMetrics()
+		d.UpdatePSUtilMetrics()
 	}
 }
 
@@ -77,10 +95,6 @@ func (d *DataCollector) UpdateRuntimeMetrics() {
 	}
 }
 
-func float64Ptr(f float64) *float64 {
-	return &f
-}
-
 func (d *DataCollector) UpdatePSUtilMetrics() {
 	memoryData, err := mem.VirtualMemory()
 	if err != nil {
@@ -119,5 +133,40 @@ func (d *DataCollector) UpdatePSUtilMetrics() {
 		)
 	}
 
-	d.CPUutilization = cpuMetrics
+	d.CPUUtilization = cpuMetrics
+}
+
+func (d *DataCollector) PassMetrics(t MetricSource, ch chan []*models.Metric) {
+	ctx, cancel := context.WithTimeout(context.Background(), SendMetricsTimeout)
+	defer cancel()
+
+	var metrics []*models.Metric
+	switch t {
+	case RuntimeMetrics:
+		metrics = append(metrics, d.Metrics...)
+		metrics = append(metrics, d.PollCount)
+
+	case PSUtilMetrics:
+		metrics = append(metrics, d.CPUUtilization...)
+		metrics = append(metrics, d.TotalMemory, d.FreeMemory)
+	}
+
+	select {
+	case ch <- metrics:
+	case <-ctx.Done():
+		logger.Log.Warn("metrics weren't sent, reached timeout", zap.Duration("timeout", SendMetricsTimeout))
+	}
+
+}
+
+func (d *DataCollector) SendMetrics(ticker *time.Ticker, jobs chan []*models.Metric) {
+	for range ticker.C {
+		logger.Log.Debug("collecting metrics")
+		go d.PassMetrics(RuntimeMetrics, jobs)
+		go d.PassMetrics(PSUtilMetrics, jobs)
+	}
+}
+
+func float64Ptr(f float64) *float64 {
+	return &f
 }

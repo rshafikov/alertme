@@ -4,69 +4,55 @@ import (
 	"github.com/rshafikov/alertme/internal/agent/config"
 	"github.com/rshafikov/alertme/internal/agent/metrics"
 	"github.com/rshafikov/alertme/internal/server/logger"
-	"github.com/rshafikov/alertme/internal/server/models"
 	"go.uber.org/zap"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
 type App struct {
-	Client *Client
-	DC     *metrics.DataCollector
-	WP     *WorkerPool
+	Client        *Client
+	DataCollector *metrics.DataCollector
+	WorkerPool    *WorkerPool
 }
 
 func NewAgentApp(client *Client, dc *metrics.DataCollector, pool *WorkerPool) *App {
 	return &App{
-		Client: client,
-		DC:     dc,
-		WP:     pool,
+		Client:        client,
+		DataCollector: dc,
+		WorkerPool:    pool,
 	}
 }
 
 func (app *App) Start() {
 	pollTicker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
-	reportTicker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
-	shutdown := make(chan struct{})
+	sendTicker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
+	shutdown := make(chan os.Signal, 1)
+
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
 	defer func() {
 		pollTicker.Stop()
-		reportTicker.Stop()
-		close(shutdown)
+		sendTicker.Stop()
 	}()
 
-	go app.collectMetrics(pollTicker)
-	go app.reportMetrics(reportTicker)
+	go app.DataCollector.CollectMetrics(pollTicker)
+	go app.DataCollector.SendMetrics(sendTicker, app.WorkerPool.JobsCh)
 	go app.handleResults()
 
-	for i := 1; i <= app.WP.Workers; i++ {
-		go app.WP.RunWorker(i, app.Client)
+	for i := 1; i <= app.WorkerPool.Workers; i++ {
+		go app.WorkerPool.RunWorker(i, app.Client)
 	}
 
 	<-shutdown
-}
-
-func (app *App) collectMetrics(ticker *time.Ticker) {
-	for range ticker.C {
-		logger.Log.Debug("collecting metrics")
-		go app.DC.UpdateRuntimeMetrics()
-		go app.DC.UpdatePSUtilMetrics()
-	}
-}
-
-func (app *App) sendMetrics(metrics []*models.Metric) {
-	app.WP.JobsCh <- metrics
-}
-
-func (app *App) reportMetrics(ticker *time.Ticker) {
-	for range ticker.C {
-		logger.Log.Debug("sending metrics")
-		app.sendMetrics(app.getRuntimeMetrics())
-		app.sendMetrics(app.getPSUtilMetrics())
-	}
+	logger.Log.Info("received shutdown signal, stopping workers...")
+	app.WorkerPool.Stop()
+	time.Sleep(300 * time.Millisecond)
 }
 
 func (app *App) handleResults() {
-	for r := range app.WP.ResultCh {
+	for r := range app.WorkerPool.ResultCh {
 		if r.Err != nil {
 			logger.Log.Error("worker failed",
 				zap.Int("worker_id", r.WorkerID),
@@ -74,20 +60,4 @@ func (app *App) handleResults() {
 			)
 		}
 	}
-}
-
-func (app *App) getRuntimeMetrics() []*models.Metric {
-	totalLen := len(app.DC.Metrics) + 1
-	m := make([]*models.Metric, 0, totalLen)
-	m = append(m, app.DC.Metrics...)
-	m = append(m, app.DC.PollCount)
-	return m
-}
-
-func (app *App) getPSUtilMetrics() []*models.Metric {
-	totalLen := len(app.DC.CPUutilization) + 2
-	m := make([]*models.Metric, 0, totalLen)
-	m = append(m, app.DC.CPUutilization...)
-	m = append(m, app.DC.TotalMemory, app.DC.FreeMemory)
-	return m
 }

@@ -84,6 +84,9 @@ func (h *Router) ParseMetricsFromJSON(r *http.Request) ([]*models.Metric, int, e
 		return nil, http.StatusBadRequest, errors.New(errmsg.UnableToDecodeJSON)
 	}
 	for _, reqMetric := range reqMetrics {
+		if reqMetric == nil {
+			return nil, http.StatusBadRequest, errors.New(errmsg.InvalidMetricValue)
+		}
 		errCode, err := h.baseMetricValidation(reqMetric.Name, reqMetric.Type)
 		if err != nil {
 			return nil, errCode, err

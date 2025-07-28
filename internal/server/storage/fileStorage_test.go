@@ -117,3 +117,71 @@ func TestFileLoader_LoadAndSaveToStorage(t *testing.T) {
 		}
 	})
 }
+
+func BenchmarkFileSaver_SaveMetrics(b *testing.B) {
+	tempFile, err := os.CreateTemp("", "benchmark-metrics-*.txt")
+	if err != nil {
+		b.Fatalf("Failed to create temp file: %v", err)
+	}
+	tempFileName := tempFile.Name()
+	tempFile.Close()
+	defer os.Remove(tempFileName)
+
+	benchCases := []struct {
+		name        string
+		metricCount int
+	}{
+		{"Small", 10},
+		{"Medium", 100},
+		{"Large", 1000},
+		{"XLarge", 10000},
+	}
+
+	for _, bc := range benchCases {
+		b.Run(fmt.Sprintf("%s-%d", bc.name, bc.metricCount), func(b *testing.B) {
+			metrics := generateTestMetrics(bc.metricCount)
+
+			fileSaver := NewFileSaver(nil, tempFileName)
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for i := 0; i < b.N; i++ {
+				file, truncErr := os.OpenFile(tempFileName, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+				if truncErr != nil {
+					b.Fatalf("Failed to truncate file: %v", truncErr)
+				}
+				file.Close()
+
+				err := fileSaver.SaveMetrics(metrics)
+				if err != nil {
+					b.Fatalf("SaveMetrics failed: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func generateTestMetrics(count int) []*models.Metric {
+	metrics := make([]*models.Metric, 0, count)
+
+	for i := 0; i < count; i++ {
+		if i%2 == 0 {
+			value := float64(i) * 1.5
+			metrics = append(metrics, &models.Metric{
+				Name:  fmt.Sprintf("gauge_metric_%d", i),
+				Type:  models.GaugeType,
+				Value: &value,
+			})
+		} else {
+			delta := int64(i)
+			metrics = append(metrics, &models.Metric{
+				Name:  fmt.Sprintf("counter_metric_%d", i),
+				Type:  models.CounterType,
+				Delta: &delta,
+			})
+		}
+	}
+
+	return metrics
+}

@@ -5,11 +5,15 @@ import (
 	"github.com/rshafikov/alertme/internal/agent/metrics"
 	"github.com/rshafikov/alertme/internal/server/logger"
 	"go.uber.org/zap"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
+
+const profilingServerAddress = ":8888"
 
 type App struct {
 	Client        *Client
@@ -26,6 +30,16 @@ func NewAgentApp(client *Client, dc *metrics.DataCollector, pool *WorkerPool) *A
 }
 
 func (app *App) Start() {
+	if config.Profiling {
+		logger.Log.Info("starting pprof server")
+		go func() {
+			err := http.ListenAndServe(profilingServerAddress, nil)
+			if err != nil {
+				logger.Log.Error(err.Error())
+			}
+		}()
+	}
+
 	pollTicker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
 	sendTicker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
 	shutdown := make(chan os.Signal, 1)

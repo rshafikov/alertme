@@ -87,7 +87,8 @@ func startServer(mR *metrics.Router) error {
 	r := chi.NewRouter()
 	r.Mount("/", mR.Routes())
 
-	if settings.CONF.LogLevel == `debug` {
+	if settings.CONF.Profiling {
+		logger.Log.Info("profiling enabled")
 		r.Mount("/debug", middleware.Profiler())
 	}
 

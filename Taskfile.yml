@@ -45,8 +45,11 @@ tasks:
     run: once
     vars:
       CACHED: '{{.CACHED | default "-count 1" }}'
-    cmds:
-      - go test {{.CACHED}}  ./...
+    cmd: go test {{.CACHED}}  ./...
+
+  bench-tests:
+    deps: [ linter, build ]
+    cmd: go test -bench=. ./...
 
   coverage-report:
     cmds:

@@ -15,6 +15,7 @@ const (
 	defaultPollInterval   = 2
 	defaultLogLevel       = "info"
 	defaultRateLimit      = 2
+	defaultProfiling      = false
 )
 
 type netAddress struct {
@@ -46,6 +47,7 @@ var PollInterval int
 var LogLevel string
 var Key string
 var RateLimit int
+var Profiling bool
 
 func InitAgentFlags() {
 	flag.Var(&ServerAddress, "a", "server address")
@@ -54,6 +56,7 @@ func InitAgentFlags() {
 	flag.StringVar(&LogLevel, "v", defaultLogLevel, "log level")
 	flag.StringVar(&Key, "k", "", "key to sign sending data")
 	flag.IntVar(&RateLimit, "l", defaultRateLimit, "rate limit")
+	flag.BoolVar(&Profiling, "pprof", defaultProfiling, "enable pprof web-server")
 	flag.Parse()
 
 	if ReportInterval <= 0 {

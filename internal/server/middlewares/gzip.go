@@ -5,7 +5,14 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
+
+var gzipWriterPool = sync.Pool{
+	New: func() interface{} {
+		return gzip.NewWriter(nil)
+	},
+}
 
 type compressWriter struct {
 	w  http.ResponseWriter
@@ -13,9 +20,11 @@ type compressWriter struct {
 }
 
 func newCompressWriter(w http.ResponseWriter) *compressWriter {
+	zw := gzipWriterPool.Get().(*gzip.Writer)
+	zw.Reset(w)
 	return &compressWriter{
 		w:  w,
-		zw: gzip.NewWriter(w),
+		zw: zw,
 	}
 }
 
@@ -24,24 +33,7 @@ func (c *compressWriter) Header() http.Header {
 }
 
 func (c *compressWriter) Write(p []byte) (int, error) {
-	supportedContentTypes := []string{
-		"text/html",
-		"application/json",
-	}
-	reqContentType := c.w.Header().Get("Content-Type")
-
-	var contentMustBeCompressed bool
-	for _, supportedType := range supportedContentTypes {
-		if strings.Contains(reqContentType, supportedType) {
-			contentMustBeCompressed = true
-			break
-		}
-	}
-
-	if contentMustBeCompressed {
-		return c.zw.Write(p)
-	}
-	return c.w.Write(p)
+	return c.zw.Write(p)
 }
 
 func (c *compressWriter) WriteHeader(statusCode int) {
@@ -52,6 +44,7 @@ func (c *compressWriter) WriteHeader(statusCode int) {
 }
 
 func (c *compressWriter) Close() error {
+	defer gzipWriterPool.Put(c.zw)
 	return c.zw.Close()
 }
 
@@ -90,6 +83,7 @@ func GZipper(h http.Handler) http.Handler {
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		responseWithGzip := strings.Contains(acceptEncoding, "gzip")
 		if responseWithGzip {
+			w.Header().Set("Content-Encoding", "gzip")
 			cw := newCompressWriter(w)
 			ow = cw
 			defer cw.Close()

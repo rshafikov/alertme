@@ -16,6 +16,7 @@ const (
 	defaultFileStoragePath = "metrics.txt"
 	defaultRestore         = false
 	defaultLogLevel        = "info"
+	defaultProfiling       = false
 )
 
 type serverConfig struct {
@@ -27,6 +28,7 @@ type serverConfig struct {
 	LogLevel         string
 	DatabaseURL      string
 	Key              string
+	Profiling        bool
 }
 
 type netAddress struct {
@@ -133,6 +135,7 @@ func InitServerFlags() {
 	flag.BoolVar(&CONF.Restore, "r", defaultRestore, "restore metrics from file, specified in the storage path")
 	flag.StringVar(&CONF.LogLevel, "l", defaultLogLevel, "log level")
 	flag.StringVar(&CONF.Key, "k", "", "a key to sign transmitted data")
+	flag.BoolVar(&CONF.Profiling, "pprof", defaultProfiling, "enanble profiling endpoint on /debug/pprof/")
 	flag.Parse()
 
 	if CONF.StoreInterval < 0 {

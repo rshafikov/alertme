@@ -43,10 +43,11 @@ func (pm *PlainMetric) ConverToMetric() (*Metric, error) {
 }
 
 type Metric struct {
-	Name  string     `json:"id"`
-	Value *float64   `json:"value,omitempty"`
-	Delta *int64     `json:"delta,omitempty"`
-	Type  MetricType `json:"type"`
+	Name    string     `json:"id"`
+	Value   *float64   `json:"value,omitempty"`
+	Delta   *int64     `json:"delta,omitempty"`
+	Type    MetricType `json:"type"`
+	mapName string
 }
 
 func (m *Metric) String() string {
@@ -62,7 +63,10 @@ func (m *Metric) String() string {
 
 // MapName m.Name-m.Type
 func (m *Metric) MapName() string {
-	return fmt.Sprintf("%s-%s", m.Type, m.Name)
+	if m.mapName == "" {
+		m.mapName = string(m.Type) + "-" + m.Name
+	}
+	return m.mapName
 }
 
 func (m *Metric) ConvertToPlain() *PlainMetric {

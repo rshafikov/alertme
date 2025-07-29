@@ -112,6 +112,7 @@ func (dbu *dbSettings) Set(s string) error {
 	return nil
 }
 
+// CONF holds the global server configuration with default values.
 var CONF = serverConfig{
 	ServerAddress:    netAddress{Host: defaultHost, Port: defaultHostPort},
 	DatabaseSettings: dbSettings{},
@@ -123,6 +124,8 @@ var CONF = serverConfig{
 	Key:              "",
 }
 
+// InitServerFlags initializes command-line flags for the server configuration.
+// It sets default values and validates the provided values.
 func InitServerFlags() {
 	_ = flag.Value(&CONF.ServerAddress)
 	flag.Var(&CONF.ServerAddress, "a", "server address")

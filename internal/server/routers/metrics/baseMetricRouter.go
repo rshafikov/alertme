@@ -7,16 +7,20 @@ import (
 	"github.com/rshafikov/alertme/internal/server/storage"
 )
 
+// Router manages HTTP routes and interactions with the metric storage system.
 type Router struct {
 	store storage.BaseMetricStorage
 }
 
+// NewMetricsRouter initializes a new Router with the provided metric storage.
 func NewMetricsRouter(store storage.BaseMetricStorage) *Router {
 	return &Router{
 		store: store,
 	}
 }
 
+// Routes initializes and configures the application's routes and middleware stack.
+// Returns a chi.Router instance with all routes and middleware applied.
 func (h *Router) Routes() chi.Router {
 	r := chi.NewRouter()
 	r.Use(middlewares.Logger)

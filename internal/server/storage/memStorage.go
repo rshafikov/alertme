@@ -10,11 +10,13 @@ import (
 	"github.com/rshafikov/alertme/internal/server/models"
 )
 
+// MemStorage implements BaseMetricStorage interface using in-memory storage.
 type MemStorage struct {
 	mu      sync.RWMutex
 	metrics map[string]*models.Metric
 }
 
+// NewMemStorage creates a new in-memory storage for metrics.
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		metrics: make(map[string]*models.Metric),

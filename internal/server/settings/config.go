@@ -6,6 +6,8 @@ import (
 	"net"
 )
 
+// InitServerConfiguration initializes the server configuration by processing command-line flags
+// and environment variables. It prints a formatted message with the final configuration.
 func InitServerConfiguration() {
 	InitServerFlags()
 

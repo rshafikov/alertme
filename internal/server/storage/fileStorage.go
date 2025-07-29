@@ -13,6 +13,15 @@ import (
 	"time"
 )
 
+// FileSaver provides methods to persist and restore metrics storage to and from a file.
+// Storage is the metrics storage interface to manage metric operations.
+// FileName specifies the file path used for saving and loading metrics.
+type FileSaver struct {
+	Storage  BaseMetricStorage
+	FileName string
+}
+
+// NewFileSaver initializes a new FileSaver with the given storage and file path.
 func NewFileSaver(storage BaseMetricStorage, filePath string) FileSaver {
 	return FileSaver{
 		Storage:  storage,
@@ -20,11 +29,7 @@ func NewFileSaver(storage BaseMetricStorage, filePath string) FileSaver {
 	}
 }
 
-type FileSaver struct {
-	Storage  BaseMetricStorage
-	FileName string
-}
-
+// LoadMetrics reads metrics from a file and returns them as a slice of Metric instances.
 func (l *FileSaver) LoadMetrics() ([]*models.Metric, error) {
 	file, err := os.Open(l.FileName)
 	if err != nil {
@@ -50,6 +55,9 @@ func (l *FileSaver) LoadMetrics() ([]*models.Metric, error) {
 	return fileMetrics, nil
 }
 
+// SaveMetrics writes a slice of Metric instances to a file in JSON format.
+// It creates or overwrites the specified file and ignores encoding errors for individual metrics.
+// Returns an error if the file cannot be opened or written to.
 func (l *FileSaver) SaveMetrics(metrics []*models.Metric) error {
 	file, err := os.OpenFile(l.FileName, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -68,6 +76,8 @@ func (l *FileSaver) SaveMetrics(metrics []*models.Metric) error {
 	return nil
 }
 
+// LoadStorage restores metrics from a file and populates the in-memory storage.
+// Returns an error if loading or storage operations fail.
 func (l *FileSaver) LoadStorage(ctx context.Context) error {
 	oldMetrics, loadErr := l.LoadMetrics()
 	if loadErr != nil {
@@ -85,6 +95,7 @@ func (l *FileSaver) LoadStorage(ctx context.Context) error {
 	return nil
 }
 
+// SaveStorage saves in-memory metrics to a file. Returns an error if saving fails.
 func (l *FileSaver) SaveStorage(ctx context.Context) error {
 	logger.Log.Debug("trying to save metrics to", zap.String("filename", l.FileName))
 	err := l.SaveMetrics(l.Storage.List(ctx))
@@ -96,6 +107,7 @@ func (l *FileSaver) SaveStorage(ctx context.Context) error {
 	return nil
 }
 
+// SaveStorageWithInterval periodically saves storage content at the specified interval in seconds.
 func (l *FileSaver) SaveStorageWithInterval(ctx context.Context, interval int) error {
 	if interval < 0 {
 		return errors.New("interval must be a positive int value")

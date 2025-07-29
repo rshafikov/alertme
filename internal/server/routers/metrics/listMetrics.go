@@ -8,6 +8,10 @@ import (
 	"net/http"
 )
 
+// ListMetrics generates an HTML page displaying a table of all available metrics.
+// It queries the store for metrics, converts them to plain format, and renders them using a template.
+// The response is sent as an HTML document with HTTP status 200 on success.
+// In case of errors, it logs and sends an appropriate HTTP error response.
 func (h *Router) ListMetrics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

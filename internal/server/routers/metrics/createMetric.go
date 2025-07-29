@@ -8,6 +8,9 @@ import (
 	"net/http"
 )
 
+// CreateMetricFromURL handles HTTP requests to create a metric from URL parameters.
+// It validates and parses the request, then saves the metric into storage.
+// Returns appropriate HTTP responses based on success or error conditions.
 func (h *Router) CreateMetricFromURL(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	newMetric, responseCode, parseErr := h.ParseMetricFromURL(r)
@@ -28,6 +31,9 @@ func (h *Router) CreateMetricFromURL(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// CreateMetricFromJSON handles creating a metric from a JSON payload in an HTTP request.
+// It parses the request body, saves the metric to the store, and returns the created metric.
+// Responds with appropriate status codes for parsing, saving, or encoding errors.
 func (h *Router) CreateMetricFromJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

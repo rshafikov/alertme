@@ -41,14 +41,29 @@ func (na *netAddress) Set(value string) error {
 	return nil
 }
 
+// ServerAddress holds the address of the metrics server.
 var ServerAddress = netAddress{Host: defaultHost, Port: defaultPort}
+
+// ReportInterval is the interval in seconds between sending metrics to the server.
 var ReportInterval int
+
+// PollInterval is the interval in seconds between collecting metrics.
 var PollInterval int
+
+// LogLevel determines the verbosity of logging.
 var LogLevel string
+
+// Key is used to sign the metrics data for security.
 var Key string
+
+// RateLimit controls the maximum number of concurrent workers.
 var RateLimit int
+
+// Profiling enables the pprof profiling server when true.
 var Profiling bool
 
+// InitAgentFlags initializes command-line flags for the agent configuration.
+// It sets default values and validates the provided values.
 func InitAgentFlags() {
 	flag.Var(&ServerAddress, "a", "server address")
 	flag.IntVar(&ReportInterval, "r", defaultReportInterval, "report interval")

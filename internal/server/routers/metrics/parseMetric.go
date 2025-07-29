@@ -9,6 +9,8 @@ import (
 	"net/http"
 )
 
+// ParseMetricFromURL extracts metric details from the URL and processes based on the HTTP method.
+// Returns the parsed metric, an HTTP status code, and an error, if any occurs during processing.
 func (h *Router) ParseMetricFromURL(r *http.Request) (*models.Metric, int, error) {
 	metricType := models.MetricType(chi.URLParam(r, "metricType"))
 	metricName := chi.URLParam(r, "metricName")
@@ -76,6 +78,8 @@ func (h *Router) baseMetricValidation(metricName string, metricType models.Metri
 	return http.StatusOK, nil
 }
 
+// ParseMetricsFromJSON parses JSON from an HTTP request to extract a list of metrics.
+// Returns the metrics, an HTTP status code, and an error if any issues occur during parsing or validation.
 func (h *Router) ParseMetricsFromJSON(r *http.Request) ([]*models.Metric, int, error) {
 	var reqMetrics []*models.Metric
 

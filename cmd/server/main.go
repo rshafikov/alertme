@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rshafikov/alertme/internal/server/database"
 	"github.com/rshafikov/alertme/internal/server/logger"
 	"github.com/rshafikov/alertme/internal/server/routers/metrics"
@@ -85,6 +86,11 @@ func setupDB(dbURL string) (*database.DB, error) {
 func startServer(mR *metrics.Router) error {
 	r := chi.NewRouter()
 	r.Mount("/", mR.Routes())
+
+	if settings.CONF.Profiling {
+		logger.Log.Info("profiling enabled")
+		r.Mount("/debug", middleware.Profiler())
+	}
 
 	return http.ListenAndServe(settings.CONF.ServerAddress.String(), r)
 }

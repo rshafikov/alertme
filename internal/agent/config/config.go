@@ -6,6 +6,9 @@ import (
 	"strconv"
 )
 
+// InitAgentConfiguration initializes the agent configuration by processing command-line flags
+// and environment variables.
+// It prints a formatted message with the final configuration.
 func InitAgentConfiguration() {
 	InitAgentFlags()
 	if err := ParseEnv(); err == nil {

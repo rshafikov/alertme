@@ -32,3 +32,14 @@ func TestUpdateDataCollector(t *testing.T) {
 		assert.NotEqualValues(t, randValueBefore, randValueAfter)
 	})
 }
+
+func BenchmarkDataCollector_CollectMetrics(b *testing.B) {
+	dc := NewEmptyDataCollector()
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		dc.UpdateRuntimeMetrics()
+		dc.UpdateRuntimeMetrics()
+	}
+}

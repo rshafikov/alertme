@@ -19,16 +19,22 @@ import (
 	"time"
 )
 
+// ErrUnableToSendMetrics is returned when metrics cannot be sent to the server.
 var ErrUnableToSendMetrics = errors.New("unable to send metrics")
 
+// Client represents an HTTP client for sending metrics to the server.
 type Client struct {
 	URL *url.URL
 }
 
+// NewClient creates a new client with the provided server URL.
 func NewClient(serverURL *url.URL) *Client {
 	return &Client{URL: serverURL}
 }
 
+// SendData sends the provided metrics to the server.
+// It uses retries with exponential backoff in case of failures.
+// Returns an error if the metrics cannot be sent after all retries.
 func (c *Client) SendData(metrics []*models.Metric) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

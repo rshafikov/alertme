@@ -95,4 +95,41 @@ func TestOnErr(t *testing.T) {
 			require.NoError(t, err)
 		},
 	)
+	t.Run(
+		"function context was canceled",
+		func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
+			go func() {
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			}()
+			targetErr := errors.New("custom error")
+			targetErrs := []error{targetErr}
+			retryFn := func(args ...any) error { return targetErr }
+			rIntervals := []time.Duration{
+				1000 * time.Millisecond,
+				1000 * time.Millisecond,
+			}
+			err := OnErr(ctx, targetErrs, rIntervals, retryFn)
+			require.Error(t, err)
+			require.Equal(t, "context canceled", ctx.Err().Error())
+		},
+	)
+	t.Run(
+		"error doesnt match any of the given errors",
+		func(t *testing.T) {
+			ctx := context.Background()
+			targetErr := errors.New("custom error")
+			expectedErr := errors.New("some other error")
+			targetErrs := []error{targetErr}
+			retryFn := func(args ...any) error { return expectedErr }
+			rIntervals := []time.Duration{
+				100 * time.Millisecond,
+				200 * time.Millisecond,
+			}
+			err := OnErr(ctx, targetErrs, rIntervals, retryFn)
+			require.Error(t, err)
+			require.Equal(t, expectedErr, err)
+		},
+	)
 }

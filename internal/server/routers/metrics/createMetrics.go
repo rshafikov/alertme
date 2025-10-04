@@ -6,6 +6,10 @@ import (
 	"net/http"
 )
 
+// CreateMetricsFromJSON handles HTTP requests to create metrics from JSON payloads.
+// It processes the request body to parse and validate metrics data.
+// Metrics are stored in batch mode to the backend using the provided context.
+// Responds with appropriate HTTP status codes based on success or error cases.
 func (h *Router) CreateMetricsFromJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

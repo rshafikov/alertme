@@ -8,6 +8,8 @@ import (
 	"net/http"
 )
 
+// PingDB handles the request to check the connectivity status of the database.
+// It responds with an HTTP status code 200 if successful, or 500 on failure.
 func (h *Router) PingDB(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

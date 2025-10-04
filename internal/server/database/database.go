@@ -1,3 +1,5 @@
+// Package database provides functionality for connecting to and interacting with a PostgreSQL database.
+// It includes functions for establishing connections, running migrations, and performing CRUD operations on metrics.
 package database
 
 import (
@@ -38,19 +40,30 @@ const getAllQuery = `
 	FROM metrics;
 `
 
+// ErrDB is returned when there's an internal database error.
 var ErrDB = errors.New("internal db error")
+
+// ErrConnToDB is returned when the application cannot connect to the database.
 var ErrConnToDB = errors.New("unable to connect to db")
 
+// DBConnErrRetryIntervals defines the time intervals between retry attempts for database connection errors.
 var DBConnErrRetryIntervals = []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second}
 
+// DB represents a database connection and provides methods for interacting with the database.
+// It implements the Pinger interface.
 type DB struct {
+	// Pool is the connection pool used to execute database queries.
 	Pool *pgxpool.Pool
 }
 
+// NewDB creates a new DB instance with the specified connection pool.
 func NewDB(pool *pgxpool.Pool) *DB {
 	return &DB{Pool: pool}
 }
 
+// handlePGErr processes PostgreSQL errors and returns appropriate error types.
+// It logs the error with the provided warning message and checks if the error matches the expected error code.
+// Returns ErrDB for matching PostgreSQL errors, ErrConnToDB for connection errors, or the original error.
 func handlePGErr(err error, warnMsg, errorCode string) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == errorCode {
@@ -72,6 +85,9 @@ func handlePGErr(err error, warnMsg, errorCode string) error {
 	return nil
 }
 
+// BootStrap sets up a database connection, runs migrations, and returns a DB instance.
+// It connects to the database using the provided URL, applies migrations, and creates a new DB instance.
+// Returns an error if the connection cannot be established or if migrations fail.
 func BootStrap(ctx context.Context, dbURL string) (*DB, error) {
 	conn := NewDBConnection(dbURL)
 	if err := conn.Connect(ctx); err != nil {
@@ -88,6 +104,10 @@ func BootStrap(ctx context.Context, dbURL string) (*DB, error) {
 	return db, nil
 }
 
+// Add adds a metric to the database.
+// For counter metrics, it adds the new delta to the existing delta if the metric already exists.
+// It uses retry logic to handle database connection errors.
+// Returns an error if the metric cannot be added.
 func (db *DB) Add(ctx context.Context, m *models.Metric) error {
 	if m.Type == models.CounterType {
 		oldMetric, _ := db.Get(ctx, m.Type, m.Name)
@@ -114,6 +134,9 @@ func (db *DB) Add(ctx context.Context, m *models.Metric) error {
 	return nil
 }
 
+// Get retrieves a metric from the database by its type and name.
+// It uses retry logic to handle database connection errors.
+// Returns the metric if found, or an error if the metric doesn't exist or if there's a database error.
 func (db *DB) Get(ctx context.Context, metricType models.MetricType, metricName string) (*models.Metric, error) {
 	var metric models.Metric
 	if err := retry.OnErr(
@@ -136,6 +159,9 @@ func (db *DB) Get(ctx context.Context, metricType models.MetricType, metricName 
 	return &metric, nil
 }
 
+// List retrieves all metrics from the database.
+// It implements manual retry logic to handle database connection errors.
+// Returns a slice of metrics, or nil if there's a database error.
 func (db *DB) List(ctx context.Context) []*models.Metric {
 	rows, err := db.Pool.Query(ctx, getAllQuery)
 

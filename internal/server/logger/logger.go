@@ -5,8 +5,12 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Log is the global logger instance used throughout the application.
 var Log = zap.NewNop()
 
+// Initialize sets up the logger with the specified log level.
+// Valid levels are: "debug", "info", "warn", "error", "dpanic", "panic", and "fatal".
+// Returns an error if the level cannot be parsed.
 func Initialize(level string) error {
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {

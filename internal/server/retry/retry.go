@@ -11,12 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// RetriableFunc defines a function which could be retrtied.
 type RetriableFunc func(args ...any) error
 
+// OnErr retries a function based on specified errors and retry intervals until it succeeds or fails.
 func OnErr(
 	ctx context.Context, tErrors []error, retries []time.Duration, fn RetriableFunc, fnArgs ...any) error {
 	var retryCount int
-	fnName := GetFunctionName()
+	fnName := getFunctionName()
 
 	for {
 		err := fn(fnArgs...)
@@ -59,7 +61,7 @@ func OnErr(
 	}
 }
 
-func GetFunctionName() string {
+func getFunctionName() string {
 	fnName, _, _, _ := runtime.Caller(2)
 	return fmt.Sprintf("%s()", runtime.FuncForPC(fnName).Name())
 }

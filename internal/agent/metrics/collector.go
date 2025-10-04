@@ -13,15 +13,20 @@ import (
 	"time"
 )
 
+// SendMetricsTimeout is the timeout for sending metrics to the channel.
 const SendMetricsTimeout = time.Second * 1
 
+// MetricSource represents the source of metrics (runtime or PSUtil).
 type MetricSource int
 
 const (
+	// RuntimeMetrics indicates metrics collected from Go runtime.
 	RuntimeMetrics MetricSource = iota
+	// PSUtilMetrics indicates metrics collected from system using PSUtil.
 	PSUtilMetrics
 )
 
+// DataCollector collects and manages various system and runtime metrics.
 type DataCollector struct {
 	Metrics        []*models.Metric
 	PollCount      *models.Metric
@@ -30,6 +35,7 @@ type DataCollector struct {
 	CPUUtilization []*models.Metric
 }
 
+// NewEmptyDataCollector creates a new DataCollector with initialized PollCount metric.
 func NewEmptyDataCollector() *DataCollector {
 	initalCount := int64(0)
 	return &DataCollector{
@@ -37,6 +43,8 @@ func NewEmptyDataCollector() *DataCollector {
 	}
 }
 
+// CollectMetrics continuously collects metrics at intervals specified by the ticker.
+// It updates both runtime and PSUtil metrics on each tick.
 func (d *DataCollector) CollectMetrics(ticker *time.Ticker) {
 	for range ticker.C {
 		logger.Log.Debug("collecting metrics")
@@ -45,6 +53,7 @@ func (d *DataCollector) CollectMetrics(ticker *time.Ticker) {
 	}
 }
 
+// String returns a formatted string representation of all collected metrics.
 func (d *DataCollector) String() string {
 	metrics := "========================================\n"
 	for _, metric := range d.Metrics {
@@ -54,6 +63,8 @@ func (d *DataCollector) String() string {
 	return metrics
 }
 
+// UpdateRuntimeMetrics collects metrics from the Go runtime and updates the DataCollector.
+// This includes memory statistics and a random value metric.
 func (d *DataCollector) UpdateRuntimeMetrics() {
 	if d.PollCount.Delta == nil {
 		d.PollCount.Delta = new(int64)
@@ -95,6 +106,8 @@ func (d *DataCollector) UpdateRuntimeMetrics() {
 	}
 }
 
+// UpdatePSUtilMetrics collects system metrics using PSUtil and updates the DataCollector.
+// This includes memory and CPU utilization metrics.
 func (d *DataCollector) UpdatePSUtilMetrics() {
 	memoryData, err := mem.VirtualMemory()
 	if err != nil {
@@ -136,6 +149,8 @@ func (d *DataCollector) UpdatePSUtilMetrics() {
 	d.CPUUtilization = cpuMetrics
 }
 
+// PassMetrics sends metrics of the specified type to the provided channel.
+// It uses a timeout context to avoid blocking indefinitely.
 func (d *DataCollector) PassMetrics(t MetricSource, ch chan []*models.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), SendMetricsTimeout)
 	defer cancel()
@@ -159,6 +174,8 @@ func (d *DataCollector) PassMetrics(t MetricSource, ch chan []*models.Metric) {
 
 }
 
+// SendMetrics periodically sends both runtime and PSUtil metrics to the jobs channel.
+// The sending frequency is determined by the provided ticker.
 func (d *DataCollector) SendMetrics(ticker *time.Ticker, jobs chan []*models.Metric) {
 	for range ticker.C {
 		logger.Log.Debug("collecting metrics")

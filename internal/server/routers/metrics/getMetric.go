@@ -10,6 +10,7 @@ import (
 	"net/http"
 )
 
+// GetMetricFromURL processes an HTTP request to retrieve a metric from the URL and responds with it.
 func (h *Router) GetMetricFromURL(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -40,6 +41,9 @@ func (h *Router) GetMetricFromURL(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetMericFromJSON handles a request to retrieve a metric in JSON format.
+// It parses the input request, fetches the stored metric, and returns it as a JSON response.
+// Responds with appropriate HTTP error codes on failure.
 func (h *Router) GetMericFromJSON(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

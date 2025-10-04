@@ -15,8 +15,11 @@ type envConfig struct {
 	RateLimit   int    `env:"RATE_LIMIT"`
 }
 
+// Env holds the configuration values loaded from environment variables.
 var Env envConfig
 
+// ParseEnv parses environment variables into the Env variable.
+// Returns an error if parsing fails.
 func ParseEnv() error {
 	err := env.Parse(&Env)
 	if err != nil {

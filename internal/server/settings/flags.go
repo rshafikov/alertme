@@ -16,6 +16,7 @@ const (
 	defaultFileStoragePath = "metrics.txt"
 	defaultRestore         = false
 	defaultLogLevel        = "info"
+	defaultProfiling       = false
 )
 
 type serverConfig struct {
@@ -27,6 +28,7 @@ type serverConfig struct {
 	LogLevel         string
 	DatabaseURL      string
 	Key              string
+	Profiling        bool
 }
 
 type netAddress struct {
@@ -110,6 +112,7 @@ func (dbu *dbSettings) Set(s string) error {
 	return nil
 }
 
+// CONF holds the global server configuration with default values.
 var CONF = serverConfig{
 	ServerAddress:    netAddress{Host: defaultHost, Port: defaultHostPort},
 	DatabaseSettings: dbSettings{},
@@ -121,6 +124,8 @@ var CONF = serverConfig{
 	Key:              "",
 }
 
+// InitServerFlags initializes command-line flags for the server configuration.
+// It sets default values and validates the provided values.
 func InitServerFlags() {
 	_ = flag.Value(&CONF.ServerAddress)
 	flag.Var(&CONF.ServerAddress, "a", "server address")
@@ -133,6 +138,7 @@ func InitServerFlags() {
 	flag.BoolVar(&CONF.Restore, "r", defaultRestore, "restore metrics from file, specified in the storage path")
 	flag.StringVar(&CONF.LogLevel, "l", defaultLogLevel, "log level")
 	flag.StringVar(&CONF.Key, "k", "", "a key to sign transmitted data")
+	flag.BoolVar(&CONF.Profiling, "pprof", defaultProfiling, "enanble profiling endpoint on /debug/pprof/")
 	flag.Parse()
 
 	if CONF.StoreInterval < 0 {

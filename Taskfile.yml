@@ -45,8 +45,18 @@ tasks:
     run: once
     vars:
       CACHED: '{{.CACHED | default "-count 1" }}'
+    cmd: go test {{.CACHED}}  ./...
+
+  bench-tests:
+    deps: [ linter, build ]
+    cmd: go test -bench=. ./...
+
+  coverage-report:
     cmds:
-      - go test {{.CACHED}}  ./...
+      - go test -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out | grep total
+      - go tool cover -html=coverage.out -o coverage.html
+      - open coverage.html
 
   iter-1:
     deps: [ unit-tests ]

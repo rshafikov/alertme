@@ -15,8 +15,11 @@ type envServerConfig struct {
 	Key             string `env:"KEY"`
 }
 
+// ServerEnv holds the configuration values loaded from environment variables.
 var ServerEnv envServerConfig
 
+// ParseEnv parses environment variables into the ServerEnv variable.
+// Returns an error if parsing fails.
 func ParseEnv() error {
 	err := env.Parse(&ServerEnv)
 	if err != nil {

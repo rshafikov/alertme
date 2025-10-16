@@ -2,10 +2,13 @@ package analyzer
 
 import (
 	"go/ast"
+	"go/token"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/inspector"
 )
 
 const doc = "noosexit checks for direct calls to os.Exit in the main function of the main package"
@@ -17,103 +20,71 @@ var Analyzer = &analysis.Analyzer{
 	Run:      run,
 }
 
-// func run(pass *analysis.Pass) (interface{}, error) {
-// 	ins := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-
-// 	if pass.Pkg.Path() == "command-line-arguments" {
-// 		return nil, nil
-// 	}
-
-// 	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
-
-// 	ins.WithStack(nodeFilter, func(n ast.Node, push bool, stack []ast.Node) bool {
-
-// 		if !push {
-// 			return true
-// 		}
-
-// 		call := n.(*ast.CallExpr)
-
-// 		if f := pass.Fset.File(call.Pos()); f != nil {
-// 			name := f.Name()
-// 			if !strings.HasSuffix(name, ".go") || strings.Contains(name, "/go-build/") {
-// 				return true
-// 			}
-// 			if strings.HasSuffix(name, "_test.go") {
-// 				return true
-// 			}
-// 		}
-
-// 		if pass.Pkg.Name() != "main" {
-// 			return true
-// 		}
-// 		var fn *ast.FuncDecl
-// 		for i := len(stack) - 1; i >= 0; i-- {
-// 			if d, ok := stack[i].(*ast.FuncDecl); ok {
-// 				fn = d
-// 				break
-// 			}
-// 		}
-// 		if fn == nil || fn.Name.Name != "main" {
-// 			return true
-// 		}
-
-// 		sel, ok := call.Fun.(*ast.SelectorExpr)
-// 		if !ok || sel.Sel == nil {
-// 			return true
-// 		}
-// 		id, ok := sel.X.(*ast.Ident)
-// 		if !ok {
-// 			return true
-// 		}
-// 		if pass.TypesInfo == nil {
-// 			return true
-// 		}
-// 		if obj, ok := pass.TypesInfo.Uses[id]; ok {
-// 			if pkgName, ok := obj.(*types.PkgName); ok {
-// 				if pkgName.Imported().Path() == "os" && sel.Sel.Name == "Exit" {
-// 					pass.Reportf(call.Pos(), "direct call to os.Exit in main function is not allowed")
-// 				}
-// 			}
-// 		}
-
-// 		return true
-// 	})
-
-// 	return nil, nil
-// }
-
-func run(pass *analysis.Pass) (interface{}, error) {
-	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
-	nodeFilter := []ast.Node{(*ast.FuncDecl)(nil), (*ast.CallExpr)(nil)}
-
-	inMainFunc := false
-
-	insp.WithStack(nodeFilter, func(n ast.Node, push bool, _ []ast.Node) bool {
-		if !push {
-			// leaving node
-			if _, ok := n.(*ast.FuncDecl); ok {
-				inMainFunc = false
-			}
+func inGoBuildCache(filename string) bool {
+	p := filepath.Clean(filename)
+	if strings.Contains(p, string(os.PathSeparator)+"go-build"+string(os.PathSeparator)) {
+		return true
+	}
+	if gc := strings.TrimSpace(os.Getenv("GOCACHE")); gc != "" {
+		gc = filepath.Clean(gc)
+		if p == gc || strings.HasPrefix(p, gc+string(os.PathSeparator)) {
 			return true
 		}
+	}
+	return false
+}
 
-		switch x := n.(type) {
-		case *ast.FuncDecl:
-			// we only care inside main.main of package main
-			inMainFunc = pass.Pkg.Name() == "main" && x.Name.Name == "main"
-		case *ast.CallExpr:
-			if !inMainFunc {
-				return true
-			}
-			if sel, ok := x.Fun.(*ast.SelectorExpr); ok {
-				if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "os" && sel.Sel.Name == "Exit" {
-					pass.Reportf(x.Pos(), "direct call to os.Exit in main function is not allowed")
-				}
+func enclosingFunc(file *ast.File, start, end token.Pos) *ast.FuncDecl {
+	var found *ast.FuncDecl
+	ast.Inspect(file, func(n ast.Node) bool {
+		if n == nil {
+			return false
+		}
+		if fd, ok := n.(*ast.FuncDecl); ok {
+			if fd.Pos() <= start && end <= fd.End() {
+				found = fd
 			}
 		}
 		return true
 	})
+	return found
+}
 
+func run(pass *analysis.Pass) (any, error) {
+	if pass.Pkg.Name() != "main" {
+		return nil, nil
+	}
+
+	for _, f := range pass.Files {
+		ast.Inspect(f, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+
+			fd := enclosingFunc(f, call.Pos(), call.End())
+			if fd == nil || fd.Recv != nil || fd.Name.Name != "main" || fd.Body == nil {
+				return true
+			}
+
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || sel.Sel == nil {
+				return true
+			}
+
+			if obj := pass.TypesInfo.Uses[sel.Sel]; obj == nil || obj.Pkg() == nil ||
+				obj.Pkg().Path() != "os" || obj.Name() != "Exit" {
+				return true
+			}
+
+			filename := pass.Fset.Position(call.Lparen).Filename
+			if inGoBuildCache(filename) {
+				return true
+			}
+
+			pass.Reportf(call.Lparen, "direct call to os.Exit in main function is not allowed")
+			return true
+		})
+	}
 	return nil, nil
 }

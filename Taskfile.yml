@@ -21,12 +21,28 @@ env:
 tasks:
 
   build-server:
+    cmd: go build -v -o "{{.SERVER_BIN_PATH}}" "{{.SERVER_BIN_DIR}}/main.go"
+
+  build-server-with-version:
     cmds:
-      - go build -v -o "{{.SERVER_BIN_PATH}}" "{{.SERVER_BIN_DIR}}/main.go"
+      - |
+        go build -v -ldflags="
+          -X main.buildVersion={{.BUILD_VERSION | default "N/A"}}
+          -X main.buildDate={{.BUILD_DATE | default "N/A"}}
+          -X main.buildCommit={{.BUILD_COMMIT | default "N/A"}}
+        " -o "{{.SERVER_BIN_PATH}}" "{{.SERVER_BIN_DIR}}/main.go"
 
   build-agent:
+    cmd: go build -v -o "{{.AGENT_BIN_PATH}}" "{{.AGENT_BIN_DIR}}/main.go"
+
+  build-agent-with-version:
     cmds:
-      - go build -v -o "{{.AGENT_BIN_PATH}}" "{{.AGENT_BIN_DIR}}/main.go"
+      - |
+        go build -v -ldflags="
+          -X main.buildVersion={{.BUILD_VERSION | default "N/A"}}
+          -X main.buildDate={{.BUILD_DATE | default "N/A"}}
+          -X main.buildCommit={{.BUILD_COMMIT | default "N/A"}}
+        " -o "{{.AGENT_BIN_PATH}}" "{{.AGENT_BIN_DIR}}/main.go"
 
   build-multichecker:
     cmd: go build -v -o "{{.STATICLINT_BIN_PATH}}" "{{.STATICLINT_BIN_DIR}}/main.go"

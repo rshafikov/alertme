@@ -16,8 +16,16 @@ import (
 	"time"
 )
 
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
 func main() {
 	settings.InitServerConfiguration()
+
+	printBuildInfo()
 
 	if err := logger.Initialize(settings.CONF.LogLevel); err != nil {
 		log.Fatal(err)
@@ -93,4 +101,20 @@ func startServer(mR *metrics.Router) error {
 	}
 
 	return http.ListenAndServe(settings.CONF.ServerAddress.String(), r)
+}
+
+func printBuildInfo() {
+	if buildVersion == "" {
+		buildVersion = "N/A"
+	}
+	if buildDate == "" {
+		buildDate = "N/A"
+	}
+	if buildCommit == "" {
+		buildCommit = "N/A"
+	}
+
+	log.Printf("Build version: %s\n", buildVersion)
+	log.Printf("Build date: %s\n", buildDate)
+	log.Printf("Build commit: %s\n", buildCommit)
 }

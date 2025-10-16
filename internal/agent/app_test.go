@@ -50,3 +50,24 @@ func TestApp_handleResults(t *testing.T) {
 
 	close(pool.ResultCh)
 }
+
+// TestApp_handleResultsNoError tests the handleResults function when no error occurs
+func TestApp_handleResultsNoError(t *testing.T) {
+	pool := NewWorkerPool(1)
+	app := &App{
+		WorkerPool: pool,
+	}
+
+	go app.handleResults()
+
+	// Send a result without error
+	pool.ResultCh <- Result{
+		Value:    "test",
+		Err:      nil,
+		WorkerID: 1,
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	close(pool.ResultCh)
+}

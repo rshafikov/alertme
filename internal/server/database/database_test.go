@@ -8,22 +8,19 @@ import (
 )
 
 func TestNewDB(t *testing.T) {
-	// This is a basic test to check if NewDB creates a DB instance
-	// In a real scenario, you would use a mock or test database connection
-	var pool *pgxpool.Pool // This would be a real pool in actual tests
+	var pool *pgxpool.Pool
 
 	db := NewDB(pool)
 
 	if db == nil {
 		t.Error("Expected DB instance, got nil")
 	}
-	if db.Pool != pool {
+	if db != nil && db.Pool != pool {
 		t.Errorf("Expected pool %v, got %v", pool, db.Pool)
 	}
 }
 
 func TestHandlePGErr(t *testing.T) {
-	// Test with a non-PostgreSQL error
 	err := handlePGErr(nil, "test warning", "test code")
 	if err != nil {
 		t.Errorf("Expected nil error, got %v", err)
@@ -31,9 +28,6 @@ func TestHandlePGErr(t *testing.T) {
 }
 
 func TestDB_Add(t *testing.T) {
-	// This is a placeholder test
-	// In a real scenario, you would use a mock database connection
-	// Skip this test for now since it requires a real database connection
 	t.Skip("Skipping TestDB_Add as it requires a real database connection")
 	
 	ctx := context.Background()
@@ -44,40 +38,106 @@ func TestDB_Add(t *testing.T) {
 		Value: float64Ptr(1.0),
 	}
 
-	// This would normally test the Add method with a real database
-	// For now, we're just checking that the method exists and doesn't panic with a valid metric
-	// _ = db.Add(ctx, nil) // This was causing the panic
 	_ = db.Add(ctx, metric)
 }
 
 func TestDB_Get(t *testing.T) {
-	// This is a placeholder test
-	// In a real scenario, you would use a mock database connection
-	// Skip this test for now since it requires a real database connection
 	t.Skip("Skipping TestDB_Get as it requires a real database connection")
 	
 	ctx := context.Background()
 	db := &DB{}
 
-	// This would normally test the Get method with a real database
-	// For now, we're just checking that the method exists
 	_, _ = db.Get(ctx, "", "")
 }
 
 func TestDB_List(t *testing.T) {
-	// This is a placeholder test
-	// In a real scenario, you would use a mock database connection
-	// Skip this test for now since it requires a real database connection
 	t.Skip("Skipping TestDB_List as it requires a real database connection")
 	
 	ctx := context.Background()
 	db := &DB{}
-
-	// This would normally test the List method with a real database
-	// For now, we're just checking that the method exists
 	_ = db.List(ctx)
 }
 
 func float64Ptr(f float64) *float64 {
 	return &f
+}
+
+func TestDB_Clear(t *testing.T) {
+	t.Skip("Skipping TestDB_Clear as it requires a real database connection")
+	
+	ctx := context.Background()
+	db := &DB{}
+	
+
+	db.Clear(ctx)
+}
+
+func TestDB_AddBatch(t *testing.T) {
+	t.Skip("Skipping TestDB_AddBatch as it requires a real database connection")
+	
+	ctx := context.Background()
+	db := &DB{}
+	metrics := []*models.Metric{
+		{
+			Name:  "test1",
+			Type:  models.GaugeType,
+			Value: float64Ptr(1.0),
+		},
+		{
+			Name:  "test2",
+			Type:  models.CounterType,
+			Delta: func() *int64 { v := int64(10); return &v }(),
+		},
+	}
+	
+	_ = db.AddBatch(ctx, metrics)
+}
+
+func TestDB_Ping(t *testing.T) {
+	t.Skip("Skipping TestDB_Ping as it requires a real database connection")
+	
+	ctx := context.Background()
+	db := &DB{}
+	
+	_ = db.Ping(ctx)
+}
+
+func TestBootStrap(t *testing.T) {
+	t.Skip("Skipping TestBootStrap as it requires a real database connection")
+	
+	ctx := context.Background()
+	
+	_, _ = BootStrap(ctx, "postgresql://localhost:5432/testdb")
+}
+
+func TestDBConnection_NewDBConnection(t *testing.T) {
+	dbURL := "postgresql://localhost:5432/testdb"
+	conn := NewDBConnection(dbURL)
+	
+	if conn.URL != dbURL {
+		t.Errorf("Expected URL %s, got %s", dbURL, conn.URL)
+	}
+	
+	if conn.Pool != nil {
+		t.Error("Expected Pool to be nil initially")
+	}
+}
+
+func TestMigrator_NewMigrator(t *testing.T) {
+	var pool *pgxpool.Pool
+	migrator := NewMigrator(pool)
+	
+	if migrator.Pool != pool {
+		t.Errorf("Expected pool %v, got %v", pool, migrator.Pool)
+	}
+}
+
+func TestMigrator_MakeMigrations(t *testing.T) {
+	t.Skip("Skipping TestMigrator_MakeMigrations as it requires a real database connection")
+	
+	ctx := context.Background()
+	var pool *pgxpool.Pool
+	migrator := NewMigrator(pool)
+
+	_ = migrator.MakeMigrations(ctx)
 }

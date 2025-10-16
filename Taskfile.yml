@@ -16,6 +16,8 @@ env:
   STATICLINT_BIN_NAME: multichecker
   STATICLINT_BIN_PATH: "{{.STATICLINT_BIN_DIR}}/{{.STATICLINT_BIN_NAME}}"
 
+  GO_COVER_PCKGS: $(go list ./... | grep -v '/cmd/')
+
 tasks:
 
   build-server:
@@ -65,7 +67,7 @@ tasks:
 
   coverage-report:
     cmds:
-      - go test -coverprofile=coverage.out ./...
+      - go test -count 1 -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out {{.GO_COVER_PCKGS}}
       - go tool cover -func=coverage.out | grep total
       - go tool cover -html=coverage.out -o coverage.html
       - open coverage.html

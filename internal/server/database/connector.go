@@ -10,10 +10,10 @@ import (
 // DBConnection represents a connection to a PostgreSQL database.
 // It holds the connection URL and a connection pool for executing queries.
 type DBConnection struct {
-	// URL is the PostgreSQL connection string.
-	URL string
 	// Pool is the connection pool for executing queries.
 	Pool *pgxpool.Pool
+	// URL is the PostgreSQL connection string.
+	URL string
 }
 
 // NewDBConnection creates a new DBConnection with the specified database URL.

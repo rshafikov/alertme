@@ -7,11 +7,11 @@ import (
 )
 
 type envConfig struct {
+	LogLevel    string `env:"LOG_LEVEL"`
 	SrvAddr     string `env:"ADDRESS"`
+	Key         string `env:"KEY"`
 	ReportIntrv int    `env:"REPORT_INTERVAL"`
 	PollIntrv   int    `env:"POLL_INTERVAL"`
-	LogLevel    string `env:"LOG_LEVEL"`
-	Key         string `env:"KEY"`
 	RateLimit   int    `env:"RATE_LIMIT"`
 }
 

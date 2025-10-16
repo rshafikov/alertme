@@ -7,17 +7,18 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"github.com/rshafikov/alertme/internal/server/errmsg"
 	"github.com/rshafikov/alertme/internal/server/models"
 	"github.com/rshafikov/alertme/internal/server/settings"
 	"github.com/rshafikov/alertme/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 )
 
 const updateURLPath = "/update"
@@ -32,9 +33,9 @@ func TestMetricsHandler_CreatePlaneMetric(t *testing.T) {
 	client := NewHTTPClient(ts.URL+updateURLPath, notCompress)
 
 	type want struct {
-		code        int
 		response    string
 		contentType string
+		code        int
 	}
 	tests := []struct {
 		name string
@@ -147,9 +148,9 @@ func TestMetricsHandler_CreateJSONMetric(t *testing.T) {
 	tests := []struct {
 		name         string
 		reqBody      string
-		expectedCode int
 		expectedBody string
 		contentType  string
+		expectedCode int
 	}{
 		{
 			name:         "create a counter metric from JSON",
@@ -362,7 +363,7 @@ func TestMetricsRouter_HashMiddleware(t *testing.T) {
 
 	t.Run("get signed and zipped data", func(t *testing.T) {
 		gaugeMetricRequest := `{"id": "h_1", "type": "gauge"}`
-		h.Write([]byte(`{"id":"h_1","value":1234.56789,"type":"gauge"}`))
+		h.Write([]byte(`{"value":1234.56789,"id":"h_1","type":"gauge"}`))
 		hash := h.Sum(nil)
 		r := httptest.NewRequest(http.MethodPost, ts.URL+"/value/", strings.NewReader(gaugeMetricRequest))
 		r.RequestURI = ""

@@ -7,12 +7,12 @@ import (
 
 type envServerConfig struct {
 	ServerAddress   string `env:"ADDRESS"`
-	StoreInteval    int    `env:"STORE_INTERVAL" envDefault:"-1"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
-	Restore         bool   `env:"RESTORE"`
-	LogLevel        string `env:"LOG_LEVEL"`
 	DatabaseURL     string `env:"DATABASE_DSN"`
 	Key             string `env:"KEY"`
+	LogLevel        string `env:"LOG_LEVEL"`
+	StoreInteval    int    `env:"STORE_INTERVAL" envDefault:"-1"`
+	Restore         bool   `env:"RESTORE"`
 }
 
 // ServerEnv holds the configuration values loaded from environment variables.

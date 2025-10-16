@@ -15,10 +15,10 @@ type Result struct {
 
 // WorkerPool represents a pool of workers that process jobs concurrently.
 type WorkerPool struct {
-	Workers  int
+	DoneCh   chan struct{}
 	JobsCh   chan []*models.Metric
 	ResultCh chan Result
-	DoneCh   chan struct{}
+	Workers  int
 }
 
 // NewWorkerPool creates a new worker pool with the specified number of workers.

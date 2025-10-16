@@ -57,12 +57,12 @@ func (pm *PlainMetric) ConverToMetric() (*Metric, error) {
 // For gauge metrics, the Value field is used.
 // For counter metrics, the Delta field is used.
 type Metric struct {
-	// Name is the identifier of the metric.
-	Name string `json:"id"`
 	// Value stores the value for gauge metrics (nil for counter metrics).
 	Value *float64 `json:"value,omitempty"`
 	// Delta stores the value for counter metrics (nil for gauge metrics).
 	Delta *int64 `json:"delta,omitempty"`
+	// Name is the identifier of the metric.
+	Name string `json:"id"`
 	// Type specifies whether this is a gauge or counter metric.
 	Type MetricType `json:"type"`
 	// mapName is a cached string combining Type and Name for efficient lookups.

@@ -12,6 +12,10 @@ env:
   SERVER_BIN_NAME: server
   SERVER_BIN_PATH: "{{.SERVER_BIN_DIR}}/{{.SERVER_BIN_NAME}}"
 
+  STATICLINT_BIN_DIR: cmd/staticlint
+  STATICLINT_BIN_NAME: multichecker
+  STATICLINT_BIN_PATH: "{{.STATICLINT_BIN_DIR}}/{{.STATICLINT_BIN_NAME}}"
+
 tasks:
 
   build-server:
@@ -22,9 +26,12 @@ tasks:
     cmds:
       - go build -v -o "{{.AGENT_BIN_PATH}}" "{{.AGENT_BIN_DIR}}/main.go"
 
+  build-multichecker:
+    cmd: go build -v -o "{{.STATICLINT_BIN_PATH}}" "{{.STATICLINT_BIN_DIR}}/main.go"
+
   build:
     run: once
-    deps: [ build-agent, build-server ]
+    deps: [ build-agent, build-server, build-multichecker ]
 
   run-server:
     deps: [ build-server ]
@@ -35,9 +42,14 @@ tasks:
     deps: [ build-agent ]
     cmds:
       - "{{.AGENT_BIN_PATH}} {{.CLI_ARGS}}"
+  
+  run-multichecker:
+    deps: [ build-multichecker]
+    cmd: "{{.STATICLINT_BIN_PATH}} ./cmd/... ./internal/..."
 
   linter:
     run: once
+    deps: [ run-multichecker ]
     cmd: go vet -vettool=`which statictest` ./...
 
   unit-tests:

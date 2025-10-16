@@ -47,7 +47,7 @@ func TestClient_compressData(t *testing.T) {
 	}
 
 	if !bytes.Equal(decompressed.Bytes(), data) {
-		t.Errorf("Expected %s, got %s", string(data), string(decompressed.Bytes()))
+		t.Errorf("Expected %s, got %s", string(data), decompressed.String())
 	}
 }
 

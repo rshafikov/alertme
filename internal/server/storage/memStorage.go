@@ -12,8 +12,8 @@ import (
 
 // MemStorage implements BaseMetricStorage interface using in-memory storage.
 type MemStorage struct {
-	mu      sync.RWMutex
 	metrics map[string]*models.Metric
+	mu      sync.RWMutex
 }
 
 // NewMemStorage creates a new in-memory storage for metrics.

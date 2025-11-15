@@ -12,19 +12,44 @@ env:
   SERVER_BIN_NAME: server
   SERVER_BIN_PATH: "{{.SERVER_BIN_DIR}}/{{.SERVER_BIN_NAME}}"
 
+  STATICLINT_BIN_DIR: cmd/staticlint
+  STATICLINT_BIN_NAME: multichecker
+  STATICLINT_BIN_PATH: "{{.STATICLINT_BIN_DIR}}/{{.STATICLINT_BIN_NAME}}"
+
+  GO_COVER_PCKGS: $(go list ./... | grep -v '/cmd/')
+
 tasks:
 
   build-server:
+    cmd: go build -v -o "{{.SERVER_BIN_PATH}}" "{{.SERVER_BIN_DIR}}/main.go"
+
+  build-server-with-version:
     cmds:
-      - go build -v -o "{{.SERVER_BIN_PATH}}" "{{.SERVER_BIN_DIR}}/main.go"
+      - |
+        go build -v -ldflags="
+          -X main.buildVersion={{.BUILD_VERSION | default "N/A"}}
+          -X main.buildDate={{.BUILD_DATE | default "N/A"}}
+          -X main.buildCommit={{.BUILD_COMMIT | default "N/A"}}
+        " -o "{{.SERVER_BIN_PATH}}" "{{.SERVER_BIN_DIR}}/main.go"
 
   build-agent:
+    cmd: go build -v -o "{{.AGENT_BIN_PATH}}" "{{.AGENT_BIN_DIR}}/main.go"
+
+  build-agent-with-version:
     cmds:
-      - go build -v -o "{{.AGENT_BIN_PATH}}" "{{.AGENT_BIN_DIR}}/main.go"
+      - |
+        go build -v -ldflags="
+          -X main.buildVersion={{.BUILD_VERSION | default "N/A"}}
+          -X main.buildDate={{.BUILD_DATE | default "N/A"}}
+          -X main.buildCommit={{.BUILD_COMMIT | default "N/A"}}
+        " -o "{{.AGENT_BIN_PATH}}" "{{.AGENT_BIN_DIR}}/main.go"
+
+  build-multichecker:
+    cmd: go build -v -o "{{.STATICLINT_BIN_PATH}}" "{{.STATICLINT_BIN_DIR}}/main.go"
 
   build:
     run: once
-    deps: [ build-agent, build-server ]
+    deps: [ build-agent, build-server, build-multichecker ]
 
   run-server:
     deps: [ build-server ]
@@ -35,9 +60,14 @@ tasks:
     deps: [ build-agent ]
     cmds:
       - "{{.AGENT_BIN_PATH}} {{.CLI_ARGS}}"
+  
+  run-multichecker:
+    deps: [ build-multichecker]
+    cmd: "{{.STATICLINT_BIN_PATH}} ./cmd/... ./internal/..."
 
   linter:
     run: once
+    deps: [ run-multichecker ]
     cmd: go vet -vettool=`which statictest` ./...
 
   unit-tests:
@@ -53,7 +83,7 @@ tasks:
 
   coverage-report:
     cmds:
-      - go test -coverprofile=coverage.out ./...
+      - go test -count 1 -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out {{.GO_COVER_PCKGS}}
       - go tool cover -func=coverage.out | grep total
       - go tool cover -html=coverage.out -o coverage.html
       - open coverage.html

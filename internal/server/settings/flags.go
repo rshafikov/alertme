@@ -22,18 +22,18 @@ const (
 type serverConfig struct {
 	ServerAddress    netAddress
 	DatabaseSettings dbSettings
-	StoreInterval    int
 	FileStoragePath  string
-	Restore          bool
 	LogLevel         string
-	DatabaseURL      string
 	Key              string
+	DatabaseURL      string
+	StoreInterval    int
 	Profiling        bool
+	Restore          bool
 }
 
 type netAddress struct {
-	Host string
 	Port string
+	Host string
 }
 
 func (na *netAddress) String() string {
@@ -56,10 +56,10 @@ func (na *netAddress) Set(s string) error {
 
 type dbSettings struct {
 	Driver   string
-	Host     string
-	Port     string
 	User     string
 	Password string
+	Host     string
+	Port     string
 	Name     string
 }
 

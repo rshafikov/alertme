@@ -51,9 +51,9 @@ func TestMetricsHandler_GetMetric(t *testing.T) {
 	tests := []struct {
 		name                string
 		url                 string
-		expectedCode        int
 		expectedResponse    string
 		expectedContentType string
+		expectedCode        int
 	}{
 		{
 			name:                "get a counter metric #1",

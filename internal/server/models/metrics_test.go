@@ -9,10 +9,10 @@ import (
 
 func TestConvertToMetric(t *testing.T) {
 	tests := []struct {
-		name          string
 		plainMetric   *PlainMetric
 		expected      *Metric
 		expectedError error
+		name          string
 	}{
 		{
 			name: "Valid Gauge Metric",
